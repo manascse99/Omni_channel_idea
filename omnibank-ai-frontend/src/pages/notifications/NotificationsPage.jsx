@@ -1,0 +1,262 @@
+import { useState } from 'react';
+import { 
+  Bell, 
+  Check, 
+  MessageSquare, 
+  UserPlus, 
+  AlertCircle, 
+  Search, 
+  Filter, 
+  Settings,
+  MoreVertical,
+  Trash2,
+  Inbox,
+  Clock,
+  ExternalLink
+} from 'lucide-react';
+
+const MOCK_NOTIFICATIONS = [
+  {
+    id: 1,
+    type: 'conversation',
+    title: 'New Conversation Assigned',
+    desc: 'Customer "Rahul Verma" reached out via WhatsApp regarding Loan Eligibility.',
+    time: '2 mins ago',
+    unread: true,
+    icon: MessageSquare,
+    color: 'text-teal bg-teal/10',
+    link: '/conversations'
+  },
+  {
+    id: 2,
+    type: 'team',
+    title: 'Agent Mention',
+    desc: '@manas shared a conversation with you: "Re: Credit Card Dispute".',
+    time: '15 mins ago',
+    unread: true,
+    icon: UserPlus,
+    color: 'text-blue-500 bg-blue-50',
+    link: '/conversations'
+  },
+  {
+    id: 3,
+    type: 'system',
+    title: 'System Update',
+    desc: 'OMNI Platform v2.1.0 has been successfully deployed. Check out the new features!',
+    time: '1 hour ago',
+    unread: false,
+    icon: Settings,
+    color: 'text-purple-500 bg-purple-50',
+    link: '/settings'
+  },
+  {
+    id: 4,
+    type: 'critical',
+    title: 'Escalation Alert',
+    desc: 'AI confidence for conversation #X812 dropped below 15%. Human intervention required.',
+    time: '3 hours ago',
+    unread: false,
+    icon: AlertCircle,
+    color: 'text-red-500 bg-red-50',
+    link: '/conversations'
+  },
+  {
+    id: 5,
+    type: 'conversation',
+    title: 'New Message from Sneha',
+    desc: 'Thanks for the quick resolution!',
+    time: '5 hours ago',
+    unread: false,
+    icon: MessageSquare,
+    color: 'text-teal bg-teal/10',
+    link: '/conversations'
+  }
+];
+
+import { useNavigate } from 'react-router-dom';
+
+export default function NotificationsPage() {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('all');
+  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+
+  const filtered = notifications.filter(n => {
+    if (activeTab === 'unread') return n.unread;
+    if (activeTab === 'team') return n.type === 'team';
+    if (activeTab === 'system') return n.type === 'system' || n.type === 'critical';
+    return true;
+  });
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+  };
+
+  const deleteNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-gray-50/30 overflow-hidden">
+      {/* Header Area */}
+      <div className="bg-white border-b border-gray-100 px-8 py-6 shrink-0 flex items-center justify-between">
+        <div>
+          <h1 className="text-[24px] font-black text-primary tracking-tight flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary/5 rounded-2xl flex items-center justify-center text-primary">
+              <Bell size={22} fill="currentColor" />
+            </div>
+            Notifications
+          </h1>
+          <p className="text-[12px] text-gray-400 font-medium mt-1">Manage your platform alerts and activity logs</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={markAllRead}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 text-[13px] font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+          >
+            <Check size={14} /> Mark all as read
+          </button>
+          <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-[13px] font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10">
+            <Trash2 size={14} /> Clear all
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex min-h-0">
+        {/* Left Filters */}
+        <div className="w-[280px] border-r border-gray-100 bg-white/50 p-6 flex flex-col gap-6 shrink-0">
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">View Category</p>
+            <div className="space-y-1.5">
+              {[
+                { id: 'all', label: 'All Activity', icon: Inbox, count: notifications.length },
+                { id: 'unread', label: 'Unread', icon: Bell, count: notifications.filter(n => n.unread).length },
+                { id: 'team', label: 'Team Mentions', icon: UserPlus, count: notifications.filter(n => n.type === 'team').length },
+                { id: 'system', label: 'System Alerts', icon: AlertCircle, count: notifications.filter(n => n.type === 'system' || n.type === 'critical').length },
+              ].map(tab => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all ${
+                    activeTab === tab.id 
+                      ? 'bg-primary text-white shadow-xl shadow-primary/10' 
+                      : 'text-gray-500 hover:bg-white hover:text-primary hover:shadow-sm border border-transparent hover:border-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <tab.icon size={16} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
+                    <span className="text-[13px] font-bold">{tab.label}</span>
+                  </div>
+                  {tab.count > 0 && (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
+                      activeTab === tab.id ? 'bg-teal/20 text-teal' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto bg-gradient-to-br from-teal/10 to-transparent border border-teal/10 rounded-2xl p-5">
+            <div className="flex items-center gap-2 text-teal mb-2">
+              <Settings size={14} strokeWidth={3} />
+              <p className="text-[11px] font-black uppercase tracking-widest">Notification Settings</p>
+            </div>
+            <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+              Customize how and when you receive alerts across Desktop and Email.
+            </p>
+            <button className="mt-4 text-[11px] font-black text-primary underline underline-offset-4 decoration-teal">
+              Access Configuration
+            </button>
+          </div>
+        </div>
+
+        {/* List Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="px-8 py-4 bg-white/30 border-b border-gray-100 flex items-center gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search notifications..."
+                className="w-full bg-white border border-gray-100 rounded-xl px-10 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary/5 transition-all shadow-sm"
+              />
+            </div>
+            <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-500 hover:bg-white shadow-sm transition-all">
+              <Filter size={14} /> Filter by date
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-8 space-y-4">
+            {filtered.length > 0 ? (
+              filtered.map((n) => (
+                <div 
+                  key={n.id} 
+                  className={`group bg-white rounded-3xl p-5 border-2 transition-all hover:shadow-xl hover:shadow-gray-200/50 flex items-start gap-5 ${
+                    n.unread ? 'border-teal/30 shadow-lg shadow-teal/5 bg-gradient-to-br from-white to-teal/5' : 'border-gray-50 shadow-sm'
+                  }`}
+                >
+                  <div className={`w-14 h-14 rounded-2xl shrink-0 flex items-center justify-center relative ${n.color}`}>
+                    <n.icon size={24} />
+                    {n.unread && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-teal rounded-full border-4 border-white shadow-sm" />
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h4 className="text-[15px] font-black text-primary truncate leading-tight">{n.title}</h4>
+                      <span className="text-[10px] text-gray-300 font-bold flex items-center gap-1 shrink-0">
+                        <Clock size={10} /> {n.time}
+                      </span>
+                    </div>
+                    <p className="text-[13px] text-gray-500 font-medium leading-relaxed mb-4">
+                      {n.desc}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => navigate(n.link)}
+                        className="px-5 py-2 rounded-xl bg-primary text-white text-[11px] font-black flex items-center gap-2 shadow-lg shadow-primary/10 hover:translate-y-[-1px] transition-all"
+                      >
+                        View Detail <ExternalLink size={10} />
+                      </button>
+                      {n.unread && (
+                        <button className="px-5 py-2 rounded-xl text-[11px] font-black text-teal hover:bg-teal/5 transition-all">
+                          Dismiss
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
+                    <button className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                    <button className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors">
+                      <MoreVertical size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-200 mb-6 font-black scale-125">
+                  <Bell size={40} />
+                </div>
+                <h3 className="text-[18px] font-black text-primary tracking-tight">All clean!</h3>
+                <p className="text-[13px] text-gray-400 font-medium mt-1">No new notifications in this category.</p>
+                <button 
+                  onClick={() => setActiveTab('all')}
+                  className="mt-6 text-teal font-black text-[13px] underline underline-offset-4"
+                >
+                  View all activity
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

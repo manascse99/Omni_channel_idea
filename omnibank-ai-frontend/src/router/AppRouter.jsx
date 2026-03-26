@@ -7,6 +7,8 @@ import ConversationsPage from '../pages/conversations/ConversationsPage';
 import AnalyticsPage from '../pages/analytics/AnalyticsPage';
 import TeamsPage from '../pages/teams/TeamsPage';
 import SettingsPage from '../pages/settings/SettingsPage';
+import ProfilePage from '../pages/profile/ProfilePage';
+import NotificationsPage from '../pages/notifications/NotificationsPage';
 
 export default function AppRouter() {
   return (
@@ -15,14 +17,16 @@ export default function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
-        
-        {/* Protected Routes Wrapper */}
+
+        {/* Protected Routes */}
         <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/conversations" element={<ConversationsPage />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/teams" element={<TeamsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/dashboard/:tab?" element={<DashboardPage />} />
+          <Route path="/conversations/:tab?" element={<ConversationsPage />} />
+          <Route path="/analytics/:tab?" element={<AnalyticsPage />} />
+          <Route path="/teams/:tab?" element={<TeamsPage />} />
+          <Route path="/settings/:tab?" element={<SettingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

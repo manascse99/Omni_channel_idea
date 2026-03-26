@@ -84,7 +84,7 @@ export default function ChatWindow() {
           {/* System Separator */}
           <div className="flex items-center justify-center my-4 gap-4">
              <div className="h-px bg-gray-200 flex-1 max-w-[100px]"></div>
-             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center">Active Queue: Assigned to Marcus Chen</p>
+             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center">Active Queue: Assigned to Karan Malhotra</p>
              <div className="h-px bg-gray-200 flex-1 max-w-[100px]"></div>
           </div>
 

@@ -1,7 +1,7 @@
 export default function ActivityFeed() {
   const activities = [
     { title: 'Auto-resolved Ticket #4829', time: 'System • 2 mins ago', type: 'success' },
-    { title: 'Escalated Ticket #4830 to Marcus', time: 'AI Engine • 5 mins ago', type: 'alert' },
+    { title: 'Escalated Ticket #4830 to Karan', time: 'AI Engine • 5 mins ago', type: 'alert' },
     { title: 'Report "Daily Volume" Exported', time: 'System • 12 mins ago', type: 'neutral' },
   ];
 

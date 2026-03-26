@@ -1,55 +1,121 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Shield, KeyRound, Eye, EyeOff, Fingerprint, Laptop2, Smartphone, Clock, Check } from 'lucide-react';
 
 export default function SecuritySection() {
-  const [mfa, setMfa] = useState(true);
+  const [twoFA, setTwoFA] = useState(true);
+  const [sessionTimeout, setSessionTimeout] = useState('30');
+  const [ipWhitelist, setIpWhitelist] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+
+  const sessions = [
+    { device: 'MacBook Pro', location: 'Mumbai, India', browser: 'Chrome 120', time: 'Active now', current: true },
+    { device: 'iPhone 15', location: 'Mumbai, India', browser: 'Safari iOS', time: '2 hours ago', current: false },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-teal/10 rounded-xl flex items-center justify-center text-teal">
-            <ShieldCheck size={20} />
+    <div className="space-y-5">
+      {/* Change Password */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center text-red-400"><KeyRound size={18} /></div>
+          <div>
+            <h3 className="text-[15px] font-black text-primary">Change Password</h3>
+            <p className="text-[11px] text-gray-400 font-medium">Update your OMNI account password</p>
           </div>
-          <h3 className="text-[18px] font-bold text-primary">Security</h3>
         </div>
-
-        <div className="space-y-8">
-          <div className="flex items-center justify-between">
-            <h4 className="text-[13px] font-bold text-primary">Multi-factor Authentication</h4>
-            <button 
-              onClick={() => setMfa(!mfa)}
-              className={`w-10 h-5 rounded-full relative transition-colors duration-300 flex items-center px-0.5 ${mfa ? 'bg-[#0F7A5E]' : 'bg-gray-300'}`}
-            >
-              <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform duration-300 ${mfa ? 'translate-x-[20px]' : 'translate-x-0'}`}></div>
-            </button>
-          </div>
-
-          <div>
-             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">IP Whitelisting</label>
-             <div className="flex gap-2">
-                <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-[13px] text-gray-500 font-medium truncate">
-                   192.168.1.1, 10.0.0.45
-                </div>
-                <button className="w-11 h-11 bg-primary text-white rounded-xl flex items-center justify-center hover:bg-black transition-colors">
-                   <Plus size={18} />
+        <div className="space-y-4">
+          {[
+            { label: 'Current Password', show: showCurrent, toggle: setShowCurrent },
+            { label: 'New Password', show: showNew, toggle: setShowNew },
+          ].map(({ label, show, toggle }) => (
+            <div key={label}>
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">{label}</label>
+              <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl h-12 focus-within:border-teal/60 focus-within:bg-white transition-all">
+                <input type={show ? 'text' : 'password'} className="flex-1 bg-transparent px-4 outline-none text-[14px] font-semibold text-primary" placeholder="••••••••" />
+                <button type="button" onClick={() => toggle(!show)} className="px-4 text-gray-400 hover:text-gray-600">
+                  {show ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
-             </div>
-          </div>
+              </div>
+            </div>
+          ))}
+          <button className="bg-primary hover:bg-primary/90 text-white font-black px-5 py-2.5 rounded-xl text-[13px] transition-all shadow-lg shadow-primary/20">
+            Update Password
+          </button>
+        </div>
+      </div>
 
-          <div>
-             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Session Timeout</label>
-             <select className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-[13px] text-primary font-bold outline-none appearance-none">
-                <option>30 Minutes</option>
-                <option>1 Hour</option>
-                <option>4 Hours</option>
-             </select>
+      {/* 2FA & Security Options */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center text-red-400"><Fingerprint size={18} /></div>
+          <h3 className="text-[15px] font-black text-primary">Security Options</h3>
+        </div>
+        <div className="space-y-4">
+          {[
+            { label: 'Two-Factor Authentication', desc: 'Use authenticator app for login verification', key: 'twofa', val: twoFA, set: setTwoFA },
+            { label: 'IP Whitelist', desc: 'Restrict logins to specific IP addresses', key: 'ip', val: ipWhitelist, set: setIpWhitelist },
+          ].map(({ label, desc, key, val, set }) => (
+            <div key={key} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+              <div>
+                <p className="text-[13px] font-bold text-primary">{label}</p>
+                <p className="text-[11px] text-gray-400 font-medium mt-0.5">{desc}</p>
+              </div>
+              <button onClick={() => set(!val)} className={`w-11 h-6 rounded-full relative transition-colors flex items-center px-1 ${val ? 'bg-teal' : 'bg-gray-200'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${val ? 'translate-x-[20px]' : 'translate-x-0'}`} />
+              </button>
+            </div>
+          ))}
+
+          <div className="py-3">
+            <p className="text-[13px] font-bold text-primary mb-1.5">Session Timeout</p>
+            <p className="text-[11px] text-gray-400 font-medium mb-3">Auto-logout after inactivity</p>
+            <select
+              value={sessionTimeout}
+              onChange={e => setSessionTimeout(e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] font-bold text-primary outline-none focus:border-teal/60 w-full"
+            >
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60">1 hour</option>
+              <option value="120">2 hours</option>
+              <option value="never">Never</option>
+            </select>
           </div>
         </div>
       </div>
 
-      {/* Placeholder for Branding or next section if needed, but for now matching the UI grid */}
-      <div id="branding-placeholder"></div>
+      {/* Active Sessions */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center text-red-400"><Laptop2 size={18} /></div>
+          <h3 className="text-[15px] font-black text-primary">Active Sessions</h3>
+        </div>
+        <div className="space-y-3">
+          {sessions.map((s, i) => (
+            <div key={i} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center">
+                  {s.device.includes('iPhone') ? <Smartphone size={16} className="text-gray-500" /> : <Laptop2 size={16} className="text-gray-500" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[13px] font-bold text-primary">{s.device}</p>
+                    {s.current && <span className="text-[9px] font-black bg-green-100 text-green-600 px-2 py-0.5 rounded-full uppercase tracking-wider">Current</span>}
+                  </div>
+                  <p className="text-[11px] text-gray-400">{s.browser} · {s.location}</p>
+                  <p className="text-[10px] text-gray-300 flex items-center gap-1 mt-0.5"><Clock size={9} /> {s.time}</p>
+                </div>
+              </div>
+              {!s.current && (
+                <button className="text-[12px] font-bold text-red-400 hover:text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors">
+                  Revoke
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

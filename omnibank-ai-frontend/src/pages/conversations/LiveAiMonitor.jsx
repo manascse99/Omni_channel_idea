@@ -3,16 +3,17 @@ import MonitorCard from './MonitorCard';
 import StrategyInsight from './StrategyInsight';
 import { Zap } from 'lucide-react';
 
-export default function LiveAiMonitor({ onSelectCard }) {
+export default function LiveAiMonitor({ onSelectCard, activeTab }) {
   const [filter, setFilter] = useState('All');
 
   const monitors = [
-    { id: 1, name: 'Rajesh Kumar', status: 'AI HANDLING', waiting: '2m 14s', intent: 'Personal Loan', sentiment: 'Positive', confidence: 94, avatar: 'https://i.pravatar.cc/150?u=rajesh' },
-    { id: 2, name: 'Elena Rodriguez', status: 'NEEDS ATTENTION', waiting: '5m 45s', intent: 'Credit Limit', sentiment: 'Neutral', confidence: 62, avatar: 'https://i.pravatar.cc/150?u=elena' },
-    { id: 3, name: 'David Chen', status: 'ESCALATED', waiting: '12m 02s', intent: 'Fraud Alert', sentiment: 'Urgent', confidence: 31, avatar: 'https://i.pravatar.cc/150?u=david' },
-    { id: 4, name: 'Sarah Jenkins', status: 'AI HANDLING', waiting: '0m 45s', intent: 'Balance Query', sentiment: 'Positive', confidence: 98, avatar: 'https://i.pravatar.cc/150?u=sarah' },
-    { id: 5, name: 'Omar Sharif', status: 'AI HANDLING', waiting: '1m 30s', intent: 'New Credit Card', sentiment: 'Curious', confidence: 89, avatar: 'https://i.pravatar.cc/150?u=omar' },
-    { id: 6, name: 'Mei Ling', status: 'NEEDS ATTENTION', waiting: '8m 22s', intent: 'App Login Issue', sentiment: 'Frustrated', confidence: 45, avatar: 'https://i.pravatar.cc/150?u=mei' },
+    { id: 1, name: 'Rajesh Kumar', status: 'AI HANDLING', waiting: '2m 14s', intent: 'Personal Loan', sentiment: 'Positive', confidence: 94, avatar: 'https://i.pravatar.cc/150?u=rajesh', channel: 'Direct' },
+    { id: 2, name: 'Isha Patel', status: 'NEEDS ATTENTION', waiting: '5m 45s', intent: 'Credit Limit', sentiment: 'Neutral', confidence: 62, avatar: 'https://i.pravatar.cc/150?u=esha', channel: 'Channels' },
+    { id: 3, name: 'Sameer Deshmukh', status: 'ESCALATED', waiting: '12m 02s', intent: 'Fraud Alert', sentiment: 'Urgent', confidence: 31, avatar: 'https://i.pravatar.cc/150?u=sameer', channel: 'Channels' },
+    { id: 4, name: 'Kavita Reddy', status: 'AI HANDLING', waiting: '0m 45s', intent: 'Balance Query', sentiment: 'Positive', confidence: 98, avatar: 'https://i.pravatar.cc/150?u=kavita', channel: 'Direct' },
+    { id: 5, name: 'Zaid Khan', status: 'AI HANDLING', waiting: '1m 30s', intent: 'New Credit Card', sentiment: 'Curious', confidence: 89, avatar: 'https://i.pravatar.cc/150?u=zaid', channel: 'Channels' },
+    { id: 6, name: 'Anjali Gupta', status: 'NEEDS ATTENTION', waiting: '8m 22s', intent: 'App Login Issue', sentiment: 'Frustrated', confidence: 45, avatar: 'https://i.pravatar.cc/150?u=anjali', channel: 'Direct' },
+    { id: 7, name: 'AI Bot 1', status: 'AI HANDLING', waiting: '0m 01s', intent: 'Greeting', sentiment: 'Positive', confidence: 99, avatar: 'https://i.pravatar.cc/150?u=bot1', channel: 'AI-Assisted' },
   ];
 
   const filteredMonitors = filter === 'All' 
@@ -21,11 +22,20 @@ export default function LiveAiMonitor({ onSelectCard }) {
 
   // Improved mapping for status to filter tabs
   const getFilteredMonitors = () => {
-    if (filter === 'All') return monitors;
-    if (filter === 'AI Handling') return monitors.filter(m => m.status === 'AI HANDLING');
-    if (filter === 'Needs Attention') return monitors.filter(m => m.status === 'NEEDS ATTENTION');
-    if (filter === 'Escalated') return monitors.filter(m => m.status === 'ESCALATED');
-    return monitors;
+    let result = monitors;
+    
+    // Filter by Header Tab (Channel)
+    if (activeTab && activeTab !== 'all') {
+      const channelLabel = activeTab.replace('-', ' ').toLowerCase();
+      result = result.filter(m => m.channel.toLowerCase() === channelLabel);
+    }
+
+    // Filter by Local Tab (Status)
+    if (filter === 'AI Handling') result = result.filter(m => m.status === 'AI HANDLING');
+    if (filter === 'Needs Attention') result = result.filter(m => m.status === 'NEEDS ATTENTION');
+    if (filter === 'Escalated') result = result.filter(m => m.status === 'ESCALATED');
+    
+    return result;
   };
 
   const tabs = ['All', 'AI Handling', 'Needs Attention', 'Escalated'];

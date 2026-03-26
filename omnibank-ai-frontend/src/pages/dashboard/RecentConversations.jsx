@@ -2,9 +2,9 @@ import { ArrowRight, User, AlertTriangle } from 'lucide-react';
 
 export default function RecentConversations() {
   const convos = [
-    { name: 'Julianne V. Smith', time: '2 MINS AGO', msg: 'I am trying to authorize a wire transfer but the OTP is not arriving on...', tags: [{ label: 'WHATSAPP', color: 'green' }, { label: 'HIGH PRIORITY', color: 'orange', icon: 'alert' }] },
-    { name: 'Titan Real Estate Corp', time: '15 MINS AGO', msg: 'Requesting bulk statements for the 2023 fiscal year across all child accounts.', tags: [{ label: 'EMAIL', color: 'gray' }, { label: 'BUSINESS TIER', color: 'gray' }] },
-    { name: 'Alex Mercer', time: '1 HOUR AGO', msg: 'Is the branch on 5th Avenue open today for locker access?', tags: [{ label: 'WEB CHAT', color: 'blue' }, { label: 'AI RESOLVED', color: 'teal' }] },
+    { name: 'Sanya Iyer', time: '2 MINS AGO', msg: 'I am trying to authorize a wire transfer but the OTP is not arriving on...', tags: [{ label: 'WHATSAPP', color: 'green' }, { label: 'HIGH PRIORITY', color: 'orange', icon: 'alert' }] },
+    { name: 'Adani Realty Group', time: '15 MINS AGO', msg: 'Requesting bulk statements for the 2023 fiscal year across all child accounts.', tags: [{ label: 'EMAIL', color: 'gray' }, { label: 'BUSINESS TIER', color: 'gray' }] },
+    { name: 'Arjun Reddy', time: '1 HOUR AGO', msg: 'Is the branch on MG Road, Bangalore open today for locker access?', tags: [{ label: 'WEB CHAT', color: 'blue' }, { label: 'AI RESOLVED', color: 'teal' }] },
   ];
 
   const badgeColors = {
@@ -38,7 +38,7 @@ export default function RecentConversations() {
         {convos.map((c, i) => (
           <div key={i} className="flex gap-4 p-4 rounded-[12px] border border-gray-100 hover:border-teal/30 hover:shadow-sm bg-white transition-all cursor-pointer group">
             <div className="w-10 h-10 rounded-full bg-surface text-primary flex items-center justify-center shrink-0 font-bold border border-gray-200 shadow-inner group-hover:bg-teal group-hover:text-white transition-colors">
-              {c.name === 'Titan Real Estate Corp' ? 'TR' : <User size={18} />}
+              {c.name === 'Adani Realty Group' ? 'AR' : <User size={18} />}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-center mb-1.5">

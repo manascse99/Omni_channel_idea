@@ -45,7 +45,7 @@ export default function OtpInput({ length = 6, onComplete }) {
             key={index}
             type="text"
             ref={(ref) => inputRefs.current[index] = ref}
-            className="w-12 h-14 bg-surface border border-gray-200 rounded-lg text-center text-xl font-bold text-primary focus:border-teal focus:ring-1 focus:ring-teal outline-none transition-all placeholder-gray-300 shadow-sm"
+            className="w-12 h-14 bg-white/5 border border-white/10 rounded-xl text-center text-xl font-bold text-white focus:border-teal focus:bg-white/10 outline-none transition-all placeholder-white/20 shadow-sm"
             value={data}
             maxLength="1"
             placeholder="•"
