@@ -72,7 +72,7 @@ export default function Header() {
           <input 
             type="text" 
             placeholder="Search conversations, agents, or settings..." 
-            className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl pl-11 pr-4 py-2.5 text-[13px] outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+            className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl pl-11 pr-16 py-2.5 text-[13px] outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
           />
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-40">
             <Command size={12} />

@@ -122,6 +122,7 @@ export default function Sidebar() {
         {/* New Broadcast Button */}
         <div className={`mt-6 transition-all duration-300 ${isCollapsed ? 'px-0 flex justify-center' : 'px-2'}`}>
           <button 
+            onClick={() => navigate('/broadcast')}
             className={`bg-teal hover:bg-[#00b395] text-primary font-black flex items-center justify-center transition-all shadow-xl shadow-teal/20 group relative overflow-hidden ${
               isCollapsed ? 'w-10 h-10 rounded-xl' : 'w-full py-3.5 rounded-2xl gap-2.5'
             }`}

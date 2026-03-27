@@ -1,31 +1,40 @@
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
+const identityService = require('./identityService');
 const aiService = require('./aiService');
-const emailService = require('./emailService');
 
 /**
- * Handles saving incoming messages, running them through AI, 
- * and updating the unified conversation thread.
+ * Handles saving incoming messages and updating the unified conversation thread.
+ * Refactored to use AI for metrics (intent, sentiment) but keep messaging manual.
  */
-async function processIncomingMessage(user, channel, content, metadata = {}) {
+async function processIncomingMessage(userOrData, channel, content, metadata = {}) {
   try {
-    // 0. Check for IMAP deduplication if UID is provided
+    // 0. Resolve User Identity if not already a Mongoose object
+    let user;
+    if (userOrData._id) {
+      user = userOrData;
+    } else {
+      const { user: resolvedUser } = await identityService.resolveIdentity(channel, userOrData.email || userOrData.phone, userOrData.name);
+      user = resolvedUser;
+    }
+
+    // 1. Check for IMAP deduplication if UID is provided
     if (metadata.imapUid) {
       const existing = await Message.findOne({ 'metadata.imapUid': metadata.imapUid });
       if (existing) {
         console.log(`IMAP: Skipping already stored message [UID: ${metadata.imapUid}]`);
-        return { conversation: await Conversation.findById(existing.conversationId), newMessage: existing, aiMessage: existing };
+        return { conversation: await Conversation.findById(existing.conversationId), newMessage: existing };
       }
     }
 
-    // 1. Find or create the ONE unified conversation for this user
+    // 2. Find or create the ONE unified conversation for this user
     let conversation = await Conversation.findOneAndUpdate(
       { userId: user._id },
       { $setOnInsert: { status: 'open', lastChannel: channel } },
       { upsert: true, new: true, runValidators: true }
     );
 
-    // 2. Save the customer's message
+    // 3. Save the customer's message
     const newMessage = await Message.create({
       conversationId: conversation._id,
       userId: user._id,
@@ -33,29 +42,18 @@ async function processIncomingMessage(user, channel, content, metadata = {}) {
       senderType: 'user',
       content: content,
       isRead: false,
-      metadata: metadata // Contains whatsappMsgId for deduplication etc
+      metadata: metadata 
     });
 
-    // 3. Fetch recent conversation history for AI context
+    // 4. Run AI Analysis for Metrics (Silent)
+    // Fetch recent conversation history for AI context
     const recentMessages = await Message.find({ conversationId: conversation._id })
       .sort({ timestamp: 1 })
-      .limit(10); // Last 10 messages for context
+      .limit(10);
 
-    // 4. Run AI Pipeline (Parallel)
     const aiResult = await aiService.processMessage(content, recentMessages);
 
-    // 5. Save the AI suggested reply as a message (senderType: 'ai')
-    const aiMessage = await Message.create({
-      conversationId: conversation._id,
-      userId: user._id,
-      channel: channel,
-      senderType: 'ai',
-      content: aiResult.reply,
-      isRead: true, // Internal/Suggestion
-      metadata: { ...metadata, isAiSuggestion: true }
-    });
-
-    // 6. Update Conversation with AI findings
+    // 5. Update Conversation metadata with AI results (For Analytics/Monitor)
     conversation.intent = aiResult.intent || 'general';
     conversation.sentiment = aiResult.sentiment || 'neutral';
     conversation.aiConfidence = aiResult.confidence || 80;
@@ -64,31 +62,16 @@ async function processIncomingMessage(user, channel, content, metadata = {}) {
     conversation.lastChannel = channel;
     conversation.updatedAt = new Date();
     
-    // Optionally move status to AI-Handling
-    if (conversation.status === 'open') {
-      conversation.status = 'ai-handling';
+    // Ensure status is open for agent attention
+    if (conversation.status === 'resolved' || conversation.status === 'ai-handling') {
+      conversation.status = 'open';
     }
 
     await conversation.save();
 
-    // 7. Automated Channel-Specific Actions (Email)
-    if (channel === 'email' && user.email) {
-      console.log(`[EMAIL] Auto-replying to ${user.email} (MessageId: ${metadata.messageId})`);
-      try {
-        await emailService.sendReply(
-          user.email,
-          aiResult.reply,
-          metadata.emailSubject || 'Re: Message Received',
-          metadata.messageId
-        );
-      } catch (emailErr) {
-        console.error('[EMAIL] Auto-reply failed:', emailErr.message);
-      }
-    } else if (channel === 'email') {
-      console.warn(`[EMAIL] Skipping auto-reply: No user email found.`);
-    }
+    console.log(`[CONVERSATION] AI metrics updated. Message processed for user ${user.email || user.phone}. Status: ${conversation.status}`);
 
-    return { conversation, aiResult, newMessage, aiMessage };
+    return { conversation, newMessage };
 
   } catch (error) {
     console.error("Conversation Service Error:", error);

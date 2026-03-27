@@ -84,6 +84,7 @@ class MailReceiver {
           const parsed = await simpleParser(all.body);
           const from = parsed.from?.value[0]?.address;
 
+          // Loop prevention: Ignore emails from the system's own email
           if (!from || from.toLowerCase() === process.env.GMAIL_USER.toLowerCase()) continue;
 
           const senderName = parsed.from?.value[0]?.name || from.split('@')[0];
@@ -93,20 +94,17 @@ class MailReceiver {
 
           console.log(`IMAP: Handling [UID: ${id}, ID: ${messageId}] from ${from}`);
 
-          // 1. Resolve Identity
-          const identityService = require('./identityService');
-          const { user } = await identityService.resolveIdentity('email', from, senderName);
-
-          // 2. Process Message
-          const { conversation, newMessage, aiMessage } = await conversationService.processIncomingMessage(
-            user,
+          // Process the incoming email manually (No AI)
+          const { conversation, newMessage } = await conversationService.processIncomingMessage(
+            { email: from, name: senderName }, // User info
             'email',
             body,
             { emailSubject: subject, imapUid: id, messageId: messageId }
           );
 
+          // Emit Socket.io event for real-time update
           if (this.socketService) {
-            this.socketService.emitAiResults(conversation, newMessage, aiMessage);
+            this.socketService.emitNewMessage(conversation._id, newMessage);
           }
         } catch (err) {
           console.error(`IMAP: Error processing item ${id}:`, err);

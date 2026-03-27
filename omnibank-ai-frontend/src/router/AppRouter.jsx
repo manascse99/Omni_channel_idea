@@ -11,6 +11,7 @@ import SettingsPage from '../pages/settings/SettingsPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import UserProfilePage from '../pages/customers/UserProfilePage';
+import BroadcastPage from '../pages/broadcast/BroadcastPage';
 
 export default function AppRouter() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -35,6 +36,7 @@ export default function AppRouter() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/customers/:id" element={<UserProfilePage />} />
+          <Route path="/broadcast" element={<BroadcastPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

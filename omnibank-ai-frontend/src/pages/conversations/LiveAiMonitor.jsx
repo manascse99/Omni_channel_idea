@@ -9,25 +9,6 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
   const [filter, setFilter] = useState('All');
   const [monitors, setMonitors] = useState([]);
 
-  const fetchConversations = () => {
-    api.get('/conversations')
-      .then(res => {
-        const mapped = res.data.conversations.map(c => ({
-          id: c._id,
-          name: c.userId?.name || c.userId?.phone || 'Unknown User',
-          status: c.status === 'ai-handling' ? 'AI HANDLING' : c.status === 'escalated' ? 'ESCALATED' : 'NEEDS ATTENTION',
-          waiting: timeSince(c.updatedAt),
-          intent: c.intent || 'General',
-          sentiment: c.sentiment || 'Neutral',
-          confidence: c.aiConfidence || 0,
-          avatar: null,
-          channel: c.lastChannel || 'Direct'
-        }));
-        setMonitors(mapped);
-      })
-      .catch(console.error);
-  };
-
   useEffect(() => {
     fetchConversations();
 
@@ -38,6 +19,25 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
 
     return () => socket.disconnect();
   }, []);
+
+  const fetchConversations = () => {
+    api.get('/conversations')
+      .then(res => {
+        const mapped = res.data.conversations.map(c => ({
+          id: c._id,
+          name: c.userId?.name || c.userId?.phone || 'Unknown User',
+          status: c.status === 'ai-handling' ? 'AI HANDLING' : c.status === 'escalated' ? 'ESCALATED' : 'NEEDS ATTENTION',
+          waiting: timeSince(c.updatedAt),
+          intent: c.intent || 'General',
+          sentiment: c.sentiment || 'Neutral',
+          confidence: c.aiConfidence || (c.status === 'ai-handling' ? 90 : c.status === 'escalated' ? 30 : 60),
+          avatar: null,
+          channel: c.lastChannel === 'whatsapp' ? 'Direct' : c.lastChannel === 'email' ? 'Channels' : 'AI-Assisted'
+        }));
+        setMonitors(mapped);
+      })
+      .catch(console.error);
+  };
 
   const timeSince = (dateStr) => {
     const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);

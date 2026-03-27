@@ -11,7 +11,7 @@ export default function ActivityFeed() {
   }, []);
 
   return (
-    <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex-1 flex flex-col">
+    <div className="bg-white rounded-[16px] p-8 shadow-md border border-gray-100 flex-1 flex flex-col hover:shadow-lg transition-all">
       <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-6">Activity Feed</h3>
       
       <div className="flex flex-col gap-6 relative flex-1">

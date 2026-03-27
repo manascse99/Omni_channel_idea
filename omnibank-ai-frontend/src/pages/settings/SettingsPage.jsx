@@ -95,7 +95,11 @@ export default function SettingsPage() {
               }`}
             >
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${active === id ? color : 'bg-gray-100 text-gray-400'}`}>
-                <Icon size={14} />
+                {/* Fixed: changed Icon to icon */}
+                {(() => {
+                  const SectionIcon = icon;
+                  return <SectionIcon size={14} />;
+                })()}
               </div>
               <span className="text-[13px] font-bold">{label}</span>
               {active === id && <Check size={12} className="ml-auto text-teal" />}

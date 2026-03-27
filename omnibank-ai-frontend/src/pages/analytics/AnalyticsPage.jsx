@@ -58,65 +58,65 @@ export default function AnalyticsPage() {
         {/* KPI 1 */}
         <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-[150px]">
           <div className="flex justify-between items-start">
-             <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
-               <MessageSquare size={20} fill="currentColor" fillOpacity={0.2} />
+             <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
+               <MessageSquare size={22} fill="currentColor" fillOpacity={0.2} />
              </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-green-600 bg-white">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-green-600 px-2 py-1 bg-green-50 rounded-lg">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
                 {stats.sentimentTrend}
               </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-3">Total Messages</p>
-            <p className="text-[32px] font-extrabold text-primary leading-none">{stats.totalMessages.toLocaleString()}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">Total Messages</p>
+            <p className="text-[36px] font-extrabold text-primary leading-none">{stats.totalMessages.toLocaleString()}</p>
           </div>
         </div>
 
         {/* KPI 2 */}
         <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-[150px]">
           <div className="flex justify-between items-start">
-             <div className="w-10 h-10 rounded-xl bg-teal/10 text-teal flex items-center justify-center">
-               <Sparkles size={20} fill="currentColor" fillOpacity={0.2} />
+             <div className="w-12 h-12 rounded-2xl bg-teal/10 text-teal flex items-center justify-center">
+               <Sparkles size={22} fill="currentColor" fillOpacity={0.2} />
              </div>
-             <div className="flex items-center gap-1 text-[11px] font-bold text-green-600 bg-white">
+             <div className="flex items-center gap-1 text-[11px] font-bold text-green-600 px-2 py-1 bg-green-50 rounded-lg">
                <Target size={12} className="text-green-500" /> Target Met
              </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-3">AI Resolution Rate</p>
-            <p className="text-[32px] font-extrabold text-primary leading-none">{stats.aiResolvedRate}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">AI Resolution Rate</p>
+            <p className="text-[36px] font-extrabold text-primary leading-none">{stats.aiResolvedRate}</p>
           </div>
         </div>
 
         {/* KPI 3 */}
         <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-[150px]">
           <div className="flex justify-between items-start">
-             <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-500 flex items-center justify-center">
-               <Smile size={20} fill="currentColor" fillOpacity={0.2} />
+             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center">
+               <Smile size={22} fill="currentColor" fillOpacity={0.2} />
              </div>
-             <div className="flex text-amber-400 gap-0.5 mt-1">
-               {[1,2,3,4,5].map(i => <svg key={i} width="10" height="10" viewBox="0 0 24 24" fill={i <= Math.round(Number(stats.avgSentiment)) ? "currentColor" : "none"} stroke={i <= Math.round(Number(stats.avgSentiment)) ? "none" : "currentColor"} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>)}
+             <div className="flex text-amber-400 gap-1 mt-1">
+               {[1,2,3,4,5].map(i => <svg key={i} width="12" height="12" viewBox="0 0 24 24" fill={i <= Math.round(Number(stats.avgSentiment)) ? "currentColor" : "none"} stroke={i <= Math.round(Number(stats.avgSentiment)) ? "none" : "currentColor"} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>)}
              </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-3">Avg Sentiment</p>
-            <p className="text-[32px] font-extrabold text-primary leading-none">{stats.avgSentiment}<span className="text-sm text-gray-400 font-medium">/5</span></p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">Avg Sentiment</p>
+            <p className="text-[36px] font-extrabold text-primary leading-none">{stats.avgSentiment}<span className="text-sm text-gray-400 font-medium">/5</span></p>
           </div>
         </div>
 
         {/* KPI 4 */}
         <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-[150px] relative overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-teal"></div>
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-teal"></div>
           <div className="flex justify-between items-start ml-2">
-             <div className="bg-teal/10 text-teal px-3 py-1 rounded text-[10px] font-bold">Top Intent</div>
+             <div className="bg-teal/10 text-teal px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider">Top Intent</div>
           </div>
           <div className="ml-2">
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 mt-3">{stats.topIntent.name}</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 mt-4">{stats.topIntent.name}</p>
             <div className="flex items-end justify-between">
-              <p className="text-[32px] font-extrabold text-primary leading-none">{stats.topIntent.rate}</p>
+              <p className="text-[36px] font-extrabold text-primary leading-none">{stats.topIntent.rate}</p>
             </div>
-            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-               <div className="h-full bg-teal rounded-full" style={{ width: stats.topIntent.rate }}></div>
+            <div className="w-full h-2 bg-gray-50 rounded-full mt-4 overflow-hidden border border-gray-100">
+               <div className="h-full bg-teal rounded-full shadow-[0_0_8px_rgba(0,201,167,0.4)]" style={{ width: stats.topIntent.rate }}></div>
             </div>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Row 4: Escalations Table */}
+      {/* Row 5: Escalations Table */}
       <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col mb-12">
          <EscalationsTable />
       </div>

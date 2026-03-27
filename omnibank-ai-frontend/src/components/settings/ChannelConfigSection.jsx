@@ -76,32 +76,35 @@ export default function ChannelConfigSection({ settings, onUpdate }) {
         </div>
 
         <div className="space-y-3">
-          {channels.map(({ id, label, color, connected, msgs, uptime }) => (
-            <div key={id} className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${connected ? 'border-gray-100 bg-gray-50/50' : 'border-dashed border-gray-200'}`}>
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
-                  <Icon size={18} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[13px] font-bold text-primary">{label}</p>
-                    {connected && <span className="text-[9px] bg-green-100 text-green-600 font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1"><Check size={8} />Live</span>}
+          {channels.map(({ id, label, color, icon, connected, msgs, uptime }) => {
+            const ChannelIcon = icon;
+            return (
+              <div key={id} className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${connected ? 'border-gray-100 bg-gray-50/50' : 'border-dashed border-gray-200'}`}>
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
+                    <ChannelIcon size={18} />
                   </div>
-                  {connected ? (
-                    <p className="text-[11px] text-gray-400 font-medium mt-0.5">{msgs} msgs this month · {uptime} uptime</p>
-                  ) : (
-                    <p className="text-[11px] text-gray-400 font-medium mt-0.5">Not connected</p>
-                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[13px] font-bold text-primary">{label}</p>
+                      {connected && <span className="text-[9px] bg-green-100 text-green-600 font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1"><Check size={8} />Live</span>}
+                    </div>
+                    {connected ? (
+                      <p className="text-[11px] text-gray-400 font-medium mt-0.5">{msgs} msgs this month · {uptime} uptime</p>
+                    ) : (
+                      <p className="text-[11px] text-gray-400 font-medium mt-0.5">Not connected</p>
+                    )}
+                  </div>
                 </div>
+                <button
+                  onClick={() => toggleChannel(id)}
+                  className={`text-[12px] font-bold px-4 py-2 rounded-xl transition-all whitespace-nowrap ${connected ? 'text-red-400 hover:bg-red-50 border border-gray-100' : 'bg-teal text-primary hover:bg-[#00b395] shadow-md shadow-teal/20'}`}
+                >
+                  {connected ? 'Disconnect' : 'Connect'}
+                </button>
               </div>
-              <button
-                onClick={() => toggleChannel(id)}
-                className={`text-[12px] font-bold px-4 py-2 rounded-xl transition-all whitespace-nowrap ${connected ? 'text-red-400 hover:bg-red-50 border border-gray-100' : 'bg-teal text-primary hover:bg-[#00b395] shadow-md shadow-teal/20'}`}
-              >
-                {connected ? 'Disconnect' : 'Connect'}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -8,7 +8,8 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('omni-jwt-token');
+  const stored = JSON.parse(sessionStorage.getItem('omni_user') || 'null');
+  const token = stored?.token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

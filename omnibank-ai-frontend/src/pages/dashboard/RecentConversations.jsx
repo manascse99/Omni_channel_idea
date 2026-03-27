@@ -48,7 +48,7 @@ export default function RecentConversations() {
   };
 
   return (
-    <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex-[1.5]">
+    <div className="bg-white rounded-[16px] p-8 shadow-md border border-gray-100 flex-[1.5] hover:shadow-lg transition-all">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-bold text-gray-800 tracking-tight">Recent Conversations</h3>
         <button className="text-[11px] font-bold text-teal uppercase flex items-center gap-1 hover:text-teal/80 transition-colors tracking-widest">
@@ -60,7 +60,7 @@ export default function RecentConversations() {
         {convos.map((c, i) => {
           const avatar = getAvatar(c.name);
           return (
-            <div key={i} className="flex gap-4 p-4 rounded-[12px] border border-gray-100 hover:border-teal/30 hover:shadow-sm bg-white transition-all cursor-pointer group">
+            <div key={i} className="flex gap-4 p-5 rounded-[12px] border border-gray-50 hover:border-teal/30 hover:shadow-lg bg-white transition-all cursor-pointer group">
               <div className={`w-10 h-10 rounded-full ${avatar.colorClass} text-white flex items-center justify-center shrink-0 font-black text-sm border border-white shadow-sm group-hover:scale-105 transition-transform`}>
                 {avatar.initials}
               </div>

@@ -1,26 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../services/apiClient';
 import { io } from 'socket.io-client';
-import { CheckCircle2, AlertTriangle, UserPlus, MoreVertical, Send, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, UserPlus, MoreVertical, ArrowLeft } from 'lucide-react';
 import MessageInput from './MessageInput';
-import AiSuggestionBox from './AiSuggestionBox';
 import { Link } from 'react-router-dom';
 import EscalationModal from './EscalationModal';
 
 export default function ChatWindow({ activeConversationId, onBack }) {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [suggestion, setSuggestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [isEscalating, setIsEscalating] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-
-  const fetchSuggestion = useCallback((id) => {
-    api.get(`/conversations/${id}/ai-suggestion`)
-      .then(res => setSuggestion(res.data.suggestion || ''))
-      .catch(console.error);
-  }, []);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -32,7 +24,6 @@ export default function ChatWindow({ activeConversationId, onBack }) {
     if (!activeConversationId) return;
     
     setLoading(true);
-    setSuggestion('');
 
     // Fetch Conversation & Messages
     api.get(`/conversations/${activeConversationId}`)
@@ -47,9 +38,6 @@ export default function ChatWindow({ activeConversationId, onBack }) {
         setLoading(false);
       });
 
-    // Fetch AI Suggestion
-    fetchSuggestion(activeConversationId);
-
     // Setup Socket.io
     const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
     socket.emit('join_conversation', { conversationId: activeConversationId });
@@ -57,17 +45,13 @@ export default function ChatWindow({ activeConversationId, onBack }) {
     socket.on('new_message', (data) => {
       setMessages(prev => [...prev, data.message]);
       scrollToBottom();
-      // Refresh AI suggestion when a new customer message arrives
-      if (data.message?.senderType === 'user') {
-        fetchSuggestion(activeConversationId);
-      }
     });
 
     return () => {
       socket.emit('leave_conversation', { conversationId: activeConversationId });
       socket.disconnect();
     };
-  }, [activeConversationId, fetchSuggestion]);
+  }, [activeConversationId]);
 
   const updateStatus = (newStatus) => {
     if (newStatus === 'escalate') {
@@ -93,20 +77,6 @@ export default function ChatWindow({ activeConversationId, onBack }) {
       });
   };
 
-  // Accept & Send: send the AI suggestion directly
-  const handleAcceptSuggestion = () => {
-    if (!suggestion || !activeConversationId) return;
-    inputRef.current?.sendMessage(suggestion);
-    setSuggestion('');
-  };
-
-  // Edit: populate the message input with the suggestion for editing
-  const handleEditSuggestion = () => {
-    if (!suggestion) return;
-    inputRef.current?.setText(suggestion);
-    setSuggestion('');
-  };
-
   if (!activeConversationId) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#F4F6F9] shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 text-gray-400 font-bold">
@@ -126,10 +96,13 @@ export default function ChatWindow({ activeConversationId, onBack }) {
   const customerName = conversation.userId?.name || conversation.userId?.email || 'Customer';
   const initials = customerName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
+  // Find the subject from the first user message if it's an email
+  const emailSubject = messages.find(m => m.channel === 'email' && m.senderType === 'user' && m.metadata?.emailSubject)?.metadata?.emailSubject || '';
+
   return (
     <div className="flex-1 flex flex-col h-full bg-[#F4F6F9] relative shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] z-10">
       {/* Chat Header */}
-      <div className="h-[80px] border-b border-gray-200 px-6 flex items-center justify-between shrink-0 bg-white shadow-sm z-30">
+      <div className="h-[90px] border-b border-gray-200 px-6 flex items-center justify-between shrink-0 bg-white shadow-sm z-30">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           {/* Back Button */}
           <button 
@@ -149,31 +122,31 @@ export default function ChatWindow({ activeConversationId, onBack }) {
               <h2 className="text-[15px] font-black text-gray-900 truncate">
                 {customerName}
               </h2>
-              <div className="flex items-center gap-1.5">
-                {conversation.intent && (
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest rounded-md border border-blue-100/50">
-                    {conversation.intent.replace('_', ' ')}
-                  </span>
-                )}
-                {conversation.sentiment && (
-                  <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
-                    conversation.sentiment === 'positive' ? 'bg-green-50 text-green-600 border-green-100/50' :
-                    conversation.sentiment === 'negative' ? 'bg-red-50 text-red-600 border-red-100/50' :
-                    'bg-gray-50 text-gray-500 border-gray-100'
-                  }`}>
-                    {conversation.sentiment}
-                  </span>
-                )}
+              <div className="flex items-center gap-1.5 leading-none">
+                <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
+                  conversation.lastChannel === 'email' ? 'bg-blue-50 text-blue-600 border-blue-100/50' : 
+                  'bg-teal/5 text-teal border-teal/10'
+                }`}>
+                  {conversation.lastChannel === 'email' ? 'Email Thread' : conversation.lastChannel}
+                </span>
+                <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
+                  conversation.status === 'resolved' ? 'bg-green-50 text-green-600 border-green-100/50' :
+                  conversation.status === 'escalated' ? 'bg-red-50 text-red-600 border-red-100/50' :
+                  'bg-orange-50 text-orange-600 border-orange-100/50'
+                }`}>
+                  {conversation.status}
+                </span>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col mt-0.5">
               <p className="text-[11px] text-gray-400 font-bold truncate tracking-tight">
                 {conversation.userId?.email || conversation.userId?.phone}
               </p>
-              <span className="w-1 h-1 rounded-full bg-gray-200"></span>
-              {conversation.userId?.channelHistory?.map(ch => (
-                <span key={ch} className="text-[9px] font-black text-teal uppercase tracking-widest">{ch}</span>
-              ))}
+              {emailSubject && (
+                <p className="text-[11px] text-primary font-black truncate max-w-md mt-0.5">
+                  Subject: {emailSubject}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -206,22 +179,19 @@ export default function ChatWindow({ activeConversationId, onBack }) {
 
           {messages.map((msg, index) => {
             const isUser = msg.senderType === 'user';
-            const isAI = msg.senderType === 'ai';
-            // Hide raw AI suggestion messages (they're shown in AiSuggestionBox instead)
-            if (isAI && msg.metadata?.isAiSuggestion) return null;
             const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now';
 
             return (
               <div key={index} className={`flex items-start gap-4 ${!isUser ? 'flex-row-reverse' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border border-white shadow-sm ${
-                  isUser ? 'bg-[#E5F5EF] text-[#0F7A5E]' : isAI ? 'bg-teal text-white' : 'bg-primary text-white'
+                  isUser ? 'bg-[#E5F5EF] text-[#0F7A5E]' : 'bg-primary text-white'
                 }`}>
-                  {isUser ? initials : isAI ? 'AI' : (msg.metadata?.agentId?.name ? msg.metadata.agentId.name[0].toUpperCase() : 'AG')}
+                  {isUser ? initials : (msg.metadata?.agentId?.name ? msg.metadata.agentId.name[0].toUpperCase() : 'AG')}
                 </div>
                 <div className={`flex flex-col max-w-[75%] ${!isUser ? 'items-end' : 'items-start'}`}>
                   {/* Channel Badge & Agent Name */}
                   <div className="flex items-center gap-2 mb-1.5 px-1">
-                    {!isUser && !isAI && msg.metadata?.agentId?.name && (
+                    {!isUser && msg.metadata?.agentId?.name && (
                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">
                         Agent: {msg.metadata.agentId.name}
                       </span>
@@ -253,14 +223,6 @@ export default function ChatWindow({ activeConversationId, onBack }) {
       {/* Input Area - Stable sticky block */}
       <div className="mt-auto bg-white border-t border-gray-100 p-6 z-20">
         <div className="max-w-4xl mx-auto flex flex-col gap-4">
-          {suggestion && (
-            <AiSuggestionBox
-              name={customerName}
-              suggestion={suggestion}
-              onAccept={handleAcceptSuggestion}
-              onEdit={handleEditSuggestion}
-            />
-          )}
           <MessageInput
             ref={inputRef}
             conversationId={activeConversationId}
