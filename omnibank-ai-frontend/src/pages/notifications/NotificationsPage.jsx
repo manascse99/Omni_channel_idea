@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Bell, 
   Check, 
@@ -14,73 +14,36 @@ import {
   Clock,
   ExternalLink
 } from 'lucide-react';
-
-const MOCK_NOTIFICATIONS = [
-  {
-    id: 1,
-    type: 'conversation',
-    title: 'New Conversation Assigned',
-    desc: 'Customer "Rahul Verma" reached out via WhatsApp regarding Loan Eligibility.',
-    time: '2 mins ago',
-    unread: true,
-    icon: MessageSquare,
-    color: 'text-teal bg-teal/10',
-    link: '/conversations'
-  },
-  {
-    id: 2,
-    type: 'team',
-    title: 'Agent Mention',
-    desc: '@manas shared a conversation with you: "Re: Credit Card Dispute".',
-    time: '15 mins ago',
-    unread: true,
-    icon: UserPlus,
-    color: 'text-blue-500 bg-blue-50',
-    link: '/conversations'
-  },
-  {
-    id: 3,
-    type: 'system',
-    title: 'System Update',
-    desc: 'OMNI Platform v2.1.0 has been successfully deployed. Check out the new features!',
-    time: '1 hour ago',
-    unread: false,
-    icon: Settings,
-    color: 'text-purple-500 bg-purple-50',
-    link: '/settings'
-  },
-  {
-    id: 4,
-    type: 'critical',
-    title: 'Escalation Alert',
-    desc: 'AI confidence for conversation #X812 dropped below 15%. Human intervention required.',
-    time: '3 hours ago',
-    unread: false,
-    icon: AlertCircle,
-    color: 'text-red-500 bg-red-50',
-    link: '/conversations'
-  },
-  {
-    id: 5,
-    type: 'conversation',
-    title: 'New Message from Sneha',
-    desc: 'Thanks for the quick resolution!',
-    time: '5 hours ago',
-    unread: false,
-    icon: MessageSquare,
-    color: 'text-teal bg-teal/10',
-    link: '/conversations'
-  }
-];
-
+import api from '../../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    api.get('/conversations')
+      .then(res => {
+        const convos = res.data.conversations || [];
+        const mapped = convos.map((c, i) => ({
+          id: c._id,
+          type: c.status === 'escalated' ? 'critical' : c.status === 'ai-handling' ? 'conversation' : 'team',
+          title: c.status === 'escalated' ? 'Escalation Alert' : 'New Conversation',
+          desc: `Customer ${c.userId?.name || c.userId?.phone || 'Unknown'} reached out via ${c.lastChannel || 'unknown channel'}. ${c.lastMessage ? '"' + c.lastMessage + '"' : ''}`,
+          time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          unread: c.status !== 'resolved',
+          icon: c.status === 'escalated' ? AlertCircle : MessageSquare,
+          color: c.status === 'escalated' ? 'text-red-500 bg-red-50' : 'text-teal bg-teal/10',
+          link: '/conversations/all'
+        }));
+        setNotifications(mapped);
+      })
+      .catch(console.error);
+  }, []);
 
   const filtered = notifications.filter(n => {
+    if (activeTab === 'all') return true;
     if (activeTab === 'unread') return n.unread;
     if (activeTab === 'team') return n.type === 'team';
     if (activeTab === 'system') return n.type === 'system' || n.type === 'critical';
@@ -94,6 +57,7 @@ export default function NotificationsPage() {
   const deleteNotification = (id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
+
 
   return (
     <div className="h-full flex flex-col bg-gray-50/30 overflow-hidden">

@@ -11,7 +11,7 @@ import {
   Command
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useAuthStore } from '../../store/authStore';
+import useAuthStore from '../../store/authStore';
 
 const PAGE_TABS = {
   '/dashboard': ['Live', 'Today', 'Weekly'],

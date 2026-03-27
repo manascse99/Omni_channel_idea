@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
 
 export default function AgentAvailabilityTable() {
-  const agents = [
-    { name: 'Marcus Thorne', role: 'Loans Senior', status: 'Online', chats: 4, resolved: 28, avatar: 'https://i.pravatar.cc/150?u=marcus' },
-    { name: 'Elena Rodriguez', role: 'Resolution Lead', status: 'Busy', chats: 7, resolved: 42, avatar: 'https://i.pravatar.cc/150?u=elena' },
-    { name: 'Simon Vance', role: 'Support Associate', status: 'Online', chats: 2, resolved: 19, avatar: 'https://i.pravatar.cc/150?u=simon' },
-  ];
+  const [agents, setAgents] = useState([]);
+
+  useEffect(() => {
+    api.get('/agents')
+      .then(res => {
+        const mapped = res.data.agents.map(a => ({
+          name: a.name,
+          role: a.role.toUpperCase(),
+          status: (a.status || 'Offline').charAt(0).toUpperCase() + (a.status || 'offline').slice(1),
+          chats: a.activeChats || 0,
+          resolved: a.resolvedToday || 0,
+          avatar: `https://ui-avatars.com/api/?name=${a.name.replace(' ','+')}&background=random`
+        }));
+        setAgents(mapped);
+      })
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100">
@@ -53,6 +66,11 @@ export default function AgentAvailabilityTable() {
               <td className="py-5 text-[16px] font-black text-primary text-right">{agent.resolved}</td>
             </tr>
           ))}
+          {agents.length === 0 && (
+            <tr>
+              <td colSpan="5" className="py-10 text-center text-gray-400 font-medium">No agents found in database.</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

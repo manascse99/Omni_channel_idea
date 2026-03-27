@@ -1,31 +1,40 @@
-import { MoreHorizontal } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
 
 export default function IntentBreakdown() {
-  const data = [
-    { name: 'Loan Inquiry', value: 64, color: '#1A2B4A' },
-    { name: 'Balance Check', value: 22, color: '#E2E8F0' },
-    { name: 'Grievance', value: 9, color: '#F87171' },
-    { name: 'General Query', value: 5, color: '#BAE6FD' },
-  ];
+  const [intents, setIntents] = useState([]);
+
+  useEffect(() => {
+    api.get('/analytics/charts')
+      .then(res => setIntents(res.data.intents))
+      .catch(console.error);
+  }, []);
+
+  const total = intents.reduce((acc, curr) => acc + (curr.value || 0), 0);
 
   return (
-    <div className="w-full flex-1 flex flex-col min-h-[300px]">
-      <div className="flex justify-between items-center mb-10">
-        <h3 className="text-[15px] font-bold text-gray-900 tracking-wide">Intent Breakdown</h3>
-        <button className="text-gray-400 hover:text-gray-600"><MoreHorizontal size={18} /></button>
-      </div>
-      <div className="flex flex-col gap-6 flex-1 justify-center">
-        {data.map(item => (
+    <div className="w-full">
+      <h3 className="text-[15px] font-bold text-gray-900 tracking-wide mb-6">Top Intent Categories</h3>
+      <div className="space-y-6">
+        {intents.map((item, index) => (
           <div key={item.name}>
-            <div className="flex justify-between mb-2">
-              <span className="text-[12px] font-bold text-gray-800">{item.name}</span>
-              <span className="text-[12px] font-extrabold text-primary">{item.value}%</span>
+            <div className="flex justify-between items-end mb-2">
+              <span className="text-[12px] font-bold text-gray-700">{item.name}</span>
+              <span className="text-[12px] font-black text-primary">{total > 0 ? Math.round((item.value / total) * 100) : 0}%</span>
             </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-               <div className="h-full rounded-full shadow-sm transition-all duration-500" style={{ width: `${item.value}%`, backgroundColor: item.color }}></div>
+            <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden">
+               <div 
+                 className="h-full bg-teal rounded-full transition-all duration-700" 
+                 style={{ width: `${total > 0 ? (item.value / total) * 100 : 0}%`, opacity: 1 - index * 0.15 }}
+               ></div>
             </div>
           </div>
         ))}
+        {intents.length === 0 && (
+          <div className="py-10 text-center text-gray-400 font-medium tracking-tight">
+            No intent intelligence data available yet.
+          </div>
+        )}
       </div>
     </div>
   );

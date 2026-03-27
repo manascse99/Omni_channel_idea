@@ -1,11 +1,27 @@
+import { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
 import { Eye, ArrowRight } from 'lucide-react';
 
 export default function EscalationsTable() {
-  const data = [
-    { id: '1', customer: 'Alex Hoffman', reason: 'Complex Mortgage Inquiry', agent: 'Sarah Miller', time: '2 mins ago', initials: 'AH', bg: 'bg-indigo-50', text: 'text-primary' },
-    { id: '2', customer: 'Robert Jenkins', reason: 'Unauthorized Transaction Appeal', agent: 'James Chen', time: '14 mins ago', initials: 'RJ', bg: 'bg-teal/20', text: 'text-[#0F7A5E]' },
-    { id: '3', customer: 'Maria Kostas', reason: 'High-Priority Business Loan', agent: 'Elena Rodriguez', time: '42 mins ago', initials: 'MK', bg: 'bg-amber-100', text: 'text-amber-700' },
-  ];
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    api.get('/analytics/escalations')
+      .then(res => {
+        const mapped = res.data.escalations.map(esc => ({
+          id: esc._id,
+          customer: esc.userId?.name || 'Unknown Customer',
+          reason: esc.intent || 'High Sensitivity Query',
+          agent: esc.assignedTo?.name || 'Unassigned',
+          time: new Date(esc.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          initials: (esc.userId?.name || 'UC').substring(0, 2).toUpperCase(),
+          bg: esc.sentiment === 'Negative' ? 'bg-red-50' : 'bg-indigo-50',
+          text: esc.sentiment === 'Negative' ? 'text-red-600' : 'text-primary'
+        }));
+        setData(mapped);
+      })
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="w-full flex-col">
@@ -55,9 +71,15 @@ export default function EscalationsTable() {
                 </td>
               </tr>
             ))}
+            {data.length === 0 && (
+              <tr>
+                <td colSpan="5" className="py-10 text-center text-gray-400 font-medium">No escalations currently tracked.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
     </div>
   );
 }
+

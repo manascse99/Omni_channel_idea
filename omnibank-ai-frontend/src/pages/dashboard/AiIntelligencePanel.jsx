@@ -1,6 +1,23 @@
+import { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
 import { Sparkles } from 'lucide-react';
 
 export default function AiIntelligencePanel() {
+  const [insight, setInsight] = useState('AI is analyzing real-time patterns...');
+
+  useEffect(() => {
+    api.get('/analytics/overview')
+      .then(res => {
+        const { topIntent } = res.data;
+        if (topIntent && topIntent.name !== 'None') {
+          setInsight(`OmniBank AI has detected a high volume of ${topIntent.name} queries. Recommend optimizing response flow for this intent.`);
+        } else {
+          setInsight('OmniBank AI is monitoring incoming traffic. Current volume is stable across all channels.');
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   return (
     <div className="bg-primary text-white rounded-[16px] p-6 shadow-xl relative overflow-hidden h-full flex flex-col justify-between border border-white/5">
       {/* Decorative glow */}
@@ -13,8 +30,7 @@ export default function AiIntelligencePanel() {
         </div>
         
         <p className="text-[13px] text-gray-300 leading-relaxed mb-6 pr-4">
-          OmniBank AI has detected an 8% surge in wire-transfer inquiries over the last hour. 
-          Recommend updating the "Wire FAQ" automated response.
+          {insight}
         </p>
       </div>
 

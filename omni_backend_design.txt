@@ -1,0 +1,1131 @@
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+OmniBank AI 
+
+Backend Architecture & Unified Communication Flow 
+Technical Design Document  |  Version 1.0  |  Internal Use Only 
+
+Platform 
+
+Version 
+
+OmniBank AI — Omnichannel Communication 
+
+v1.0 (MVP) 
+
+Channels 
+
+WhatsApp + Email + Web Chat 
+
+Database 
+
+MongoDB (Document-based) 
+
+AI Engine 
+
+Llama via Ollama (local) 
+
+WhatsApp API  Meta WhatsApp Cloud API (official) 
+
+Email Inbound 
+
+SendGrid Inbound Parse 
+
+Frontend 
+
+Backend 
+
+Vite + React + Tailwind (pre-built, no changes) 
+
+Node.js + Express + Socket.io 
+
+Page 1 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+1. System Overview 
+
+OmniBank AI's backend is a central intelligence layer responsible for receiving customer 
+messages from three channels — WhatsApp, Email, and Web Chat — and unifying them into a 
+single, context-aware conversation thread per customer. No matter which channel a customer 
+uses, all their messages are stored together, processed by AI, and presented to agents as one 
+continuous timeline. 
+
+Core Principle: One customer = One user profile = One conversation thread. Channel is just 
+metadata, not identity. 
+
+1.1 Three Pillars of the Backend 
+
+Pillar 
+
+What it does 
+
+Identity Resolution 
+
+Unified Conversation 
+
+AI Processing Layer 
+
+Identifies who the customer is across channels using phone 
+(WhatsApp) or email (Email/Web) as the primary key 
+
+Maintains a single chronological thread per customer across all 
+channels — no duplicate threads 
+
+Runs intent detection, sentiment analysis, auto-reply generation, 
+context summarisation, and team routing in parallel with message 
+storage 
+
+1.2 Key Design Decisions 
+
+•  MongoDB is used for all storage — users, conversations, and messages — due to its 
+
+flexibility with unstructured conversational data. 
+
+•  AI processing runs in parallel with storage — the message is saved and the AI 
+
+pipeline runs simultaneously, minimising response latency. 
+
+•  The frontend is pre-built and fixed — the backend must expose APIs and Socket.io 
+
+events that match exactly what the frontend expects. No frontend changes. 
+
+•  Reply channel is AI-decided — based on the user's channel preference and history, 
+
+the AI determines whether to reply via WhatsApp, Email, or Web Chat. 
+
+Page 2 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+2. Message Ingestion Layer 
+
+Every customer interaction enters the system through one of three ingestion points. Each has its 
+own webhook or socket handler, but all funnel into the same central processing pipeline. 
+
+2.1 Channel Entry Points 
+
+Channel 
+
+Protocol 
+
+Provider 
+
+Trigger 
+
+WhatsApp 
+
+Email 
+
+Web Chat 
+
+HTTP Webhook 
+(POST) 
+
+Meta WhatsApp Cloud 
+API 
+
+Customer sends a WhatsApp 
+message to the bank's number 
+
+HTTP Webhook 
+(POST) 
+
+SendGrid Inbound Parse  Customer sends an email to 
+the bank's inbound address 
+
+WebSocket 
+(Socket.io) 
+
+Custom (built in-house) 
+
+Customer types in the 
+embedded web chat widget 
+
+2.2 WhatsApp Webhook (Meta Cloud API) 
+
+Meta sends a POST request to your registered webhook URL every time a customer message 
+is received. The backend must: 
+
+1.  Verify the webhook using the X-Hub-Signature-256 header (HMAC-SHA256 validation 
+
+using your App Secret) 
+
+2.  Parse the incoming payload to extract: phone number, message content, message type 
+
+(text/media), timestamp, and WhatsApp message ID 
+
+3.  Respond with HTTP 200 immediately — Meta will retry if no 200 is received within 20 
+
+seconds 
+
+4.  Pass the extracted data into the Central Processing Pipeline 
+
+// Incoming Meta webhook payload (simplified) 
+{ 
+  "object": "whatsapp_business_account", 
+  "entry": [{ 
+    "changes": [{ 
+      "value": { 
+        "messages": [{ 
+          "from": "919876543210",   // phone number (identity) 
+          "text": { "body": "I need a personal loan" }, 
+          "timestamp": "1711234567" 
+        }] 
+      } 
+    }] 
+  }] 
+} 
+
+2.3 Email Webhook (SendGrid Inbound Parse) 
+
+Page 3 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+SendGrid parses incoming emails and forwards them as multipart/form-data POST requests to 
+your configured inbound URL. The backend must: 
+
+5.  Parse the POST body to extract: sender email address, subject line, plain text body, 
+
+HTML body, and any attachments 
+
+6.  Use the sender email as the identity key for user lookup 
+7.  Strip reply-chain quoted text from the email body before storing (only store the new 
+
+content) 
+
+8.  Pass extracted data into the Central Processing Pipeline 
+
+SendGrid strips email metadata on free plans. Ensure your SendGrid account has Inbound Parse 
+enabled and the MX record for your inbound domain is correctly configured before testing. 
+
+2.4 Web Chat (Socket.io) 
+
+Web Chat messages arrive via a persistent Socket.io connection established when the 
+customer opens the chat widget. The backend must: 
+
+9.  Listen for the send_message event from the client socket 
+10. Extract: socket session ID or temporary user token, message content, and timestamp 
+11. If the user is authenticated (logged into the bank portal), map their session to their 
+
+known user profile 
+
+12. If anonymous, create a temporary user profile that can be linked later when identity is 
+
+confirmed 
+
+Page 4 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+3. Identity Resolution & User Linking 
+
+This is the most critical step in the pipeline. The backend determines who the customer is and 
+either finds their existing profile or creates a new one. This ensures every message is always 
+tied to a single user entity. 
+
+3.1 Identity Extraction by Channel 
+
+Channel 
+
+Primary Identity 
+Key 
+
+WhatsApp 
+
+Phone number 
+
+Email 
+
+Email address 
+
+Secondary Key 
+
+Extracted From 
+
+Email (if provided 
+later) 
+
+from field in Meta webhook 
+payload 
+
+Phone (if provided 
+later) 
+
+from / sender field in SendGrid 
+payload 
+
+Web Chat 
+
+Session token / user 
+ID 
+
+Phone or Email (from 
+profile) 
+
+Socket session or auth token 
+
+3.2 User Lookup Flow 
+
+Once the identity key is extracted, the backend performs the following lookup in MongoDB: 
+
+13. Query by channel identifier: If WhatsApp, search users collection for { phone: 
+
+extractedPhone }. If Email, search for { email: extractedEmail }. 
+
+14. User found: Reuse the existing user profile. Update the lastSeen and lastChannel 
+
+fields. 
+
+15. User not found: Create a new user profile with the available identifier. Leave the 
+
+missing field (phone or email) as null. 
+
+3.3 Cross-Channel Identity Linking (Merge Logic) 
+
+A customer who contacts via WhatsApp first will have a profile with only a phone number. When 
+they later send an email, the backend attempts to link these two identities: 
+
+Scenario 
+
+Action 
+
+Result 
+
+WhatsApp message 
+arrives (phone: 
+91987...) 
+
+Look up by phone → not found 
+→ create profile 
+
+New user: { phone: '91987...', email: 
+null } 
+
+Email arrives (email: 
+raj@gmail.com) 
+
+Look up by email → not found → 
+create profile 
+
+New user: { phone: null, email: 
+'raj@gmail.com' } 
+
+Page 5 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+Scenario 
+
+Action 
+
+Result 
+
+Same user mentions 
+phone in email body 
+
+AI extracts phone from content, 
+backend queries by phone 
+
+Finds existing WhatsApp profile → 
+updates email field → merges 
+
+Same user provides 
+email in WhatsApp 
+message 
+
+Two different users 
+share same 
+phone/email 
+
+AI extracts email from content, 
+backend queries by email 
+
+Finds existing Email profile → updates 
+phone field → merges 
+
+Duplicate identifier detected on 
+create 
+
+Create separate profiles, set 
+duplicateWarning: true, flag for agent 
+review 
+
+Edge Case — Shared Identifiers: If the system detects that a phone number or email already exists in 
+another profile during creation, it creates a new separate profile with a duplicateWarning: true flag. 
+This flags the conversation in the agent dashboard for manual review. Do NOT auto-merge without 
+agent confirmation. 
+
+3.4 MongoDB User Document Schema 
+
+// users collection 
+{ 
+  _id:              ObjectId, 
+  phone:            String | null,       // WhatsApp identifier 
+  email:            String | null,       // Email identifier 
+  name:             String | null,       // Populated when known 
+  channelHistory:   ["whatsapp","email","webchat"], 
+  preferredChannel: String,             // AI-determined reply channel 
+  duplicateWarning: Boolean,            // true = shared identifier detected 
+  tags:             ["loan","grievance"],// Intent tags from AI 
+  createdAt:        Date, 
+  updatedAt:        Date, 
+  lastSeen:         Date, 
+  lastChannel:      String 
+} 
+
+Page 6 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+4. Conversation Management & Message Storage 
+
+Once the user is identified or created, the backend manages the conversation layer. The design 
+principle is strict: one unified conversation thread per user, regardless of channel. 
+
+4.1 Conversation Lookup & Creation 
+
+16. Query the conversations collection for an existing conversation where userId matches 
+
+the resolved user's _id 
+
+17. If a conversation exists — append the new message to that thread. Update the 
+
+updatedAt, lastMessage, and status fields. 
+
+18. If no conversation exists — create a new conversation document associated with that 
+
+userId 
+
+Design Rule: There is always exactly ONE conversation per user. New messages from any channel 
+— WhatsApp, Email, or Web Chat — are always appended to this single thread. The channel is 
+recorded per-message, not per-conversation. 
+
+4.2 Conversation Status Lifecycle 
+
+Status 
+
+Open 
+
+AI-Handling 
+
+Pending Review 
+
+Escalated 
+
+Resolved 
+
+Meaning 
+
+Trigger 
+
+New conversation just created, no 
+action taken yet 
+
+First message received from a new 
+user 
+
+AI has responded automatically, 
+waiting for user reply 
+
+AI generates and sends auto-reply 
+
+AI flagged conversation for human 
+review 
+
+Low AI confidence, complex query, or 
+escalation trigger 
+
+Agent or AI escalated to senior 
+team/specialist 
+
+Manual escalation or intent rule 
+triggered 
+
+Conversation marked complete by 
+agent or AI 
+
+Agent clicks Resolve or AI detects 
+resolution intent 
+
+4.3 MongoDB Conversation Document Schema 
+
+// conversations collection 
+{ 
+  _id:          ObjectId, 
+  userId:       ObjectId,              // ref → users._id 
+  status:       "open" | "ai-handling" | "pending-review" | "escalated" | 
+"resolved", 
+  assignedTo:   ObjectId | null,       // ref → agents._id 
+  assignedTeam: ObjectId | null,       // ref → teams._id 
+  intent:       String,               // top intent from AI (e.g. "loan_inquiry") 
+  sentiment:    "positive" | "neutral" | "negative", 
+
+Page 7 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+  lastMessage:  String,               // preview of last message 
+  lastChannel:  String,               // channel of most recent message 
+  aiSummary:    String,               // rolling context summary from AI 
+  createdAt:    Date, 
+  updatedAt:    Date 
+} 
+
+4.4 MongoDB Message Document Schema 
+
+Every individual message — from customer, agent, or AI — is stored as a separate document in 
+the messages collection: 
+
+// messages collection 
+{ 
+  _id:            ObjectId, 
+  conversationId: ObjectId,            // ref → conversations._id 
+  userId:         ObjectId,            // ref → users._id 
+  channel:        "whatsapp" | "email" | "webchat", 
+  senderType:     "user" | "agent" | "ai", 
+  content:        String,              // message text / email body 
+  isRead:         Boolean,             // read/unread status 
+  timestamp:      Date, 
+  metadata: { 
+    whatsappMsgId:  String | null,     // Meta message ID for WA deduplication 
+    emailSubject:   String | null,     // email subject line 
+    emailMessageId: String | null,     // email Message-ID header 
+  } 
+} 
+
+Page 8 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+5. AI Processing Pipeline 
+
+AI processing runs in parallel with message storage — both operations are triggered 
+simultaneously when a message arrives, so neither blocks the other. The AI pipeline uses 
+Llama (running locally via Ollama) for all language processing tasks. 
+
+Parallel Execution: Message storage and AI processing are fired simultaneously using Promise.all(). 
+The AI response is sent back to the user only after both the message is stored AND the AI has 
+generated a reply — typically within 1-3 seconds for local Ollama inference. 
+
+5.1 AI Tasks Per Incoming Message 
+
+Task 
+
+Input 
+
+Output 
+
+Used For 
+
+Intent Detection 
+
+Message content + last 
+5 messages 
+
+Sentiment Analysis 
+
+Message content 
+
+Auto-Reply Generation 
+
+Full conversation 
+history + user profile + 
+intent 
+
+Intent label (e.g. 
+loan_inquiry, 
+balance_check, 
+grievance, general) 
+
+Sentiment score: 
+positive / neutral / 
+negative 
+
+Draft reply message 
+in natural language 
+
+Context Summarisation 
+
+Full conversation 
+thread 
+
+Short summary (2-3 
+sentences) 
+
+Team Routing 
+
+Detected intent 
+
+Team assignment 
+recommendation 
+
+Team routing, 
+conversation tagging, 
+analytics 
+
+Agent dashboard 
+sentiment badge, 
+analytics 
+
+AI sends reply 
+automatically via 
+correct channel 
+
+Stored as aiSummary 
+on conversation, 
+shown to agent on 
+open 
+
+Auto-assigns 
+conversation to Loans / 
+Grievance / General 
+team 
+
+5.2 AI Reply Flow 
+
+19. Message arrives and is stored in MongoDB 
+20. AI pipeline receives the message content + full conversation history from MongoDB 
+21. Llama (Ollama) processes the input and returns: intent, sentiment, draft reply, summary 
+22. Backend updates the conversation document with new intent, sentiment, and 
+
+aiSummary 
+
+23. AI determines the preferred reply channel based on user's preferredChannel field and 
+
+channelHistory 
+
+24. Backend sends the AI-generated reply via the determined channel API (Meta / SendGrid 
+
+/ Socket.io) 
+
+Page 9 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+25. AI reply message is stored in the messages collection with senderType: 'ai' 
+26. Socket.io emits a conversation_updated event to the agent dashboard in real time 
+
+5.3 AI Override by Agent 
+
+Since the AI responds automatically, agents can override at any point: 
+
+•  Agent sees the AI reply in the chat window with a teal 'AI' badge 
+•  Agent can type a manual reply in the message input — this creates a message with 
+
+• 
+
+senderType: 'agent' 
+If the agent sends a manual reply, the conversation status changes from AI-Handling to 
+Open (agent-managed) 
+
+•  The AI suggestion box shows the next AI-suggested reply — agent can Accept & Send 
+
+or Edit Suggestion 
+
+Important: The frontend AI suggestion box ('Accept & Send' / 'Edit Suggestion') uses the 
+/api/conversations/:id/ai-suggestion endpoint to fetch the latest AI draft. The backend must expose 
+this endpoint and return the most recent unsent AI draft for that conversation. 
+
+Page 10 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+6. API Contracts — Frontend Integration 
+
+The frontend is pre-built and must not be changed. The backend must expose the following 
+exact API endpoints and Socket.io events that the frontend is already wired to consume. 
+
+Critical: Do not change the frontend. The backend endpoints, response shapes, and Socket.io event 
+names listed in this section are fixed contracts. Any deviation will break the frontend without any code 
+changes on the frontend side. 
+
+6.1 REST API Endpoints 
+
+Method  Endpoint 
+
+Description 
+
+Returns 
+
+POST 
+
+/api/auth/send-otp 
+
+POST 
+
+/api/auth/verify-otp 
+
+GET 
+
+/api/dashboard/stats 
+
+GET 
+
+/api/conversations 
+
+GET 
+
+/api/conversations/:id 
+
+Send OTP to agent 
+phone via 
+WhatsApp/SMS 
+
+{ success: true, expiresIn: 60 
+} 
+
+Verify OTP, issue JWT 
+token 
+
+{ token: 'jwt...', agent: { id, 
+name, role } } 
+
+KPI stats for 
+dashboard 
+
+{ total, aiResolved, pending, 
+avgResponseTime } 
+
+Paginated 
+conversation list with 
+filters 
+
+{ conversations: [], total, page 
+} 
+
+Single conversation + 
+full message history 
+
+{ conversation: {}, messages: 
+[] } 
+
+POST 
+
+/api/conversations/:id/messages  Send agent message 
+
+{ message: {} } 
+
+GET 
+
+/api/conversations/:id/ai-
+suggestion 
+
+POST 
+
+/api/conversations/:id/assign 
+
+Get latest AI draft 
+reply 
+
+Assign to team or 
+agent 
+
+{ suggestion: 'text...' } 
+
+{ success: true } 
+
+POST 
+
+/api/conversations/:id/resolve 
+
+Mark as resolved 
+
+{ success: true } 
+
+POST 
+
+/api/conversations/:id/escalate 
+
+Escalate conversation 
+
+{ success: true } 
+
+GET 
+
+/api/analytics/overview 
+
+Analytics KPIs + chart 
+data 
+
+{ kpis: {}, charts: {} } 
+
+GET 
+
+GET 
+
+GET 
+
+/api/teams 
+
+/api/agents 
+
+/api/monitor/live 
+
+GET 
+
+/api/users/:id 
+
+All teams with agents 
+
+{ teams: [] } 
+
+All agents with status 
+
+{ agents: [] } 
+
+Current live 
+conversations 
+
+Customer profile + 
+cross-channel history 
+
+{ conversations: [] } 
+
+{ user: {}, conversations: [] } 
+
+Page 11 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+6.2 Socket.io Events 
+
+Event Name 
+
+Direction 
+
+Payload 
+
+Purpose 
+
+new_message 
+
+Server → Client 
+
+{ conversationId, message, 
+channel } 
+
+conversation_updated  Server → Client 
+
+{ conversationId, status, 
+sentiment, intent } 
+
+Push new message to 
+agent dashboard in 
+real time 
+
+Update conversation 
+card status/sentiment 
+live 
+
+agent_assigned 
+
+Server → Client 
+
+{ conversationId, agentId, 
+teamId } 
+
+Notify dashboard of 
+assignment change 
+
+monitor_update 
+
+Server → Client 
+
+{ liveConversations[] } 
+
+ai_reply_sent 
+
+Server → Client 
+
+{ conversationId, message } 
+
+join_conversation 
+
+Client → Server 
+
+{ conversationId } 
+
+leave_conversation 
+
+Client → Server 
+
+{ conversationId } 
+
+Refresh Live AI 
+Monitor board 
+
+Show AI reply in chat 
+window immediately 
+
+Agent joins a 
+conversation room for 
+real-time updates 
+
+Agent leaves a 
+conversation room 
+
+Page 12 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+7. End-to-End Flow Walkthrough 
+
+This section walks through a complete real-world scenario: a customer named Rajesh Kumar 
+contacts the bank via WhatsApp asking about a personal loan, then follows up via email. 
+
+Step 1 — WhatsApp message received 
+
+•  Rajesh sends: 'I need a personal loan of ₹5,00,000' via WhatsApp to the bank number 
+•  Meta Cloud API fires a POST to /webhook/whatsapp on the backend 
+•  Backend validates signature, extracts phone: 919876543210 and message content 
+•  Backend responds HTTP 200 to Meta immediately 
+
+Step 2 — Identity resolution 
+
+•  Backend queries MongoDB users for { phone: '919876543210' } → not found 
+•  New user created: { _id: ObjectId('...'), phone: '919876543210', email: null, 
+
+channelHistory: ['whatsapp'] } 
+
+Step 3 — Conversation creation 
+
+•  Backend queries conversations for { userId: Rajesh's _id } → not found 
+•  New conversation created: { userId: ..., status: 'open', intent: null, sentiment: null } 
+
+Step 4 — Message storage + AI processing (parallel) 
+
+•  Message stored: { conversationId, channel: 'whatsapp', senderType: 'user', content: 'I 
+
+need a personal loan...', isRead: false, timestamp: now } 
+
+•  AI pipeline starts simultaneously — Llama processes the message 
+•  AI returns: intent = 'loan_inquiry', sentiment = 'positive', suggestedReply = 'Hi Rajesh! 
+Our personal loan rates start at 10.5% p.a. To check your eligibility, could you share 
+your monthly income and preferred tenure?' 
+
+Step 5 — AI reply sent 
+
+•  Conversation updated: { status: 'ai-handling', intent: 'loan_inquiry', sentiment: 'positive', 
+
+aiSummary: 'Customer inquiring about personal loan of ₹5L' } 
+
+•  AI determines preferredChannel = 'whatsapp' (first contact channel) 
+•  Backend sends reply via Meta Cloud API to Rajesh's WhatsApp 
+•  AI reply stored: { senderType: 'ai', channel: 'whatsapp', content: 'Hi Rajesh! Our personal 
+
+loan...' } 
+
+•  Socket.io emits new_message and conversation_updated to agent dashboard 
+
+Page 13 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+Step 6 — Rajesh follows up via Email 
+
+•  Rajesh sends email from raj.kumar@gmail.com: 'Following up on my loan query. My 
+
+income is ₹65,000/month' 
+
+•  SendGrid Inbound Parse fires POST to /webhook/email 
+•  Backend extracts email: raj.kumar@gmail.com 
+•  Backend queries MongoDB for { email: 'raj.kumar@gmail.com' } → not found 
+•  Backend checks if any user has mentioned this email in previous messages → AI 
+
+• 
+• 
+
+content scan 
+If no match: new profile created, duplicateWarning: false, independent thread created 
+If match found via AI content extraction: profiles merged, email field updated on Rajesh's 
+profile 
+
+•  New message appended to Rajesh's unified conversation thread with channel: 'email' 
+
+Step 7 — Agent views unified thread 
+
+•  Agent opens Conversations in the dashboard 
+•  Sees single conversation for Rajesh with messages from both WhatsApp and Email in 
+
+chronological order 
+
+•  WhatsApp messages show WhatsApp channel icon; email messages show email icon 
+•  Context is continuous — no need to switch between separate threads 
+•  AI suggestion box shows next recommended reply: 'Based on your income of ₹65,000, 
+
+you are eligible for up to ₹7,80,000. Would you like to proceed?' 
+
+Page 14 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+8. Implementation Notes & Rules 
+
+8.1 Environment Variables Required 
+
+# Meta WhatsApp Cloud API 
+META_PHONE_NUMBER_ID=your_phone_number_id 
+META_ACCESS_TOKEN=your_permanent_access_token 
+META_WEBHOOK_VERIFY_TOKEN=your_custom_verify_token 
+META_APP_SECRET=your_app_secret_for_signature_validation 
+
+# SendGrid 
+SENDGRID_API_KEY=your_sendgrid_api_key 
+SENDGRID_FROM_EMAIL=noreply@omnibank.ai 
+
+# MongoDB 
+MONGODB_URI=mongodb://localhost:27017/omnibank 
+
+# Ollama / Llama 
+OLLAMA_BASE_URL=http://localhost:11434 
+OLLAMA_MODEL=llama3 
+
+# App 
+PORT=5000 
+JWT_SECRET=your_jwt_secret_here 
+JWT_EXPIRES_IN=8h 
+
+8.2 MongoDB Indexes (Required for Performance) 
+
+conversations: index on userId, index on status, index on updatedAt (descending) 
+
+•  users: unique index on phone (sparse), unique index on email (sparse) 
+• 
+•  messages: index on conversationId, index on timestamp (descending) 
+•  messages: index on isRead for fast unread count queries 
+
+8.3 Critical Rules 
+
+•  Never block the webhook response — respond HTTP 200 to Meta/SendGrid 
+
+immediately. All processing happens after the response. 
+
+•  Deduplicate WhatsApp messages — check metadata.whatsappMsgId before storing. 
+
+Meta may retry delivery. 
+
+•  Never auto-merge duplicate profiles — always set duplicateWarning: true and let 
+
+agent confirm. 
+
+•  All API responses must match the shape the frontend expects — the frontend is 
+
+fixed and cannot be changed. 
+
+•  Socket.io rooms per conversation — use conversationId as the Socket.io room name 
+
+so only agents in that conversation receive updates. 
+
+Page 15 of 16   |   OmniBank AI  —  Confidential 
+
+ 
+  
+  
+  
+  
+ 
+ 
+ 
+ 
+OmniBank AI  —  Backend Architecture & Flow 
+
+Internal Technical Document  |  v1.0 
+
+— End of Document — 
+
+Page 16 of 16   |   OmniBank AI  —  Confidential 
+
+

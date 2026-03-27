@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
 import { Calendar, MessageSquare, Sparkles, Smile, Target } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import VolumeChart from './VolumeChart';
@@ -9,6 +11,18 @@ import SentimentAnalysis from './SentimentAnalysis';
 export default function AnalyticsPage() {
   const { tab } = useParams();
   const activeTab = tab ? tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ') : 'Overview';
+  const [stats, setStats] = useState({ 
+    totalMessages: 0, 
+    aiResolvedRate: '0%', 
+    avgSentiment: '0.0', 
+    topIntent: { name: 'None', rate: '0%' } 
+  });
+
+  useEffect(() => {
+    api.get('/analytics/overview')
+      .then(res => setStats(res.data))
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto h-full flex flex-col overflow-y-auto">
@@ -47,7 +61,7 @@ export default function AnalyticsPage() {
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-3">Total Messages</p>
-            <p className="text-[32px] font-extrabold text-primary leading-none">15,420</p>
+            <p className="text-[32px] font-extrabold text-primary leading-none">{stats.totalMessages.toLocaleString()}</p>
           </div>
         </div>
 
@@ -63,7 +77,7 @@ export default function AnalyticsPage() {
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-3">AI Resolution Rate</p>
-            <p className="text-[32px] font-extrabold text-primary leading-none">74%</p>
+            <p className="text-[32px] font-extrabold text-primary leading-none">{stats.aiResolvedRate}</p>
           </div>
         </div>
 
@@ -74,13 +88,12 @@ export default function AnalyticsPage() {
                <Smile size={20} fill="currentColor" fillOpacity={0.2} />
              </div>
              <div className="flex text-amber-400 gap-0.5 mt-1">
-               {[1,2,3,4].map(i => <svg key={i} width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>)}
-               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+               {[1,2,3,4,5].map(i => <svg key={i} width="10" height="10" viewBox="0 0 24 24" fill={i <= Math.round(Number(stats.avgSentiment)) ? "currentColor" : "none"} stroke={i <= Math.round(Number(stats.avgSentiment)) ? "none" : "currentColor"} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>)}
              </div>
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-3">Avg Sentiment</p>
-            <p className="text-[32px] font-extrabold text-primary leading-none">4.2<span className="text-sm text-gray-400 font-medium">/5</span></p>
+            <p className="text-[32px] font-extrabold text-primary leading-none">{stats.avgSentiment}<span className="text-sm text-gray-400 font-medium">/5</span></p>
           </div>
         </div>
 
@@ -91,12 +104,12 @@ export default function AnalyticsPage() {
              <div className="bg-teal/10 text-teal px-3 py-1 rounded text-[10px] font-bold">Top Intent</div>
           </div>
           <div className="ml-2">
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 mt-3">Loan Inquiry</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 mt-3">{stats.topIntent.name}</p>
             <div className="flex items-end justify-between">
-              <p className="text-[32px] font-extrabold text-primary leading-none">64%</p>
+              <p className="text-[32px] font-extrabold text-primary leading-none">{stats.topIntent.rate}</p>
             </div>
             <div className="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
-               <div className="h-full bg-teal w-[64%] rounded-full"></div>
+               <div className="h-full bg-teal rounded-full" style={{ width: stats.topIntent.rate }}></div>
             </div>
           </div>
         </div>
@@ -169,3 +182,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+

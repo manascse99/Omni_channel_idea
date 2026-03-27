@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import useAuthStore from '../../store/authStore';
 import { Shield, KeyRound, Eye, EyeOff, Fingerprint, Laptop2, Smartphone, Clock, Check } from 'lucide-react';
 
 export default function SecuritySection() {
@@ -8,10 +9,12 @@ export default function SecuritySection() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
 
-  const sessions = [
-    { device: 'MacBook Pro', location: 'Mumbai, India', browser: 'Chrome 120', time: 'Active now', current: true },
-    { device: 'iPhone 15', location: 'Mumbai, India', browser: 'Safari iOS', time: '2 hours ago', current: false },
-  ];
+  // The 'user' state is typically fetched from an authentication store, not dummy data.
+  // Assuming useAuthStore is a valid hook for fetching user data.
+  const user = useAuthStore(state => state.user);
+
+  // Removed dummy sessions data. In a real application, this would be fetched from an API.
+  const sessions = []; 
 
   return (
     <div className="space-y-5">

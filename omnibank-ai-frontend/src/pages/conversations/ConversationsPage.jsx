@@ -7,15 +7,23 @@ import LiveAiMonitor from './LiveAiMonitor';
 export default function ConversationsPage() {
   const { tab } = useParams();
   const [view, setView] = useState('monitor'); // 'monitor' or 'chat'
+  const [activeConversationId, setActiveConversationId] = useState(null);
 
   if (view === 'monitor') {
-    return <LiveAiMonitor onSelectCard={() => setView('chat')} activeTab={tab} />;
+    return <LiveAiMonitor onSelectCard={(id) => {
+      setActiveConversationId(id);
+      setView('chat');
+    }} activeTab={tab} />;
   }
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-white relative animate-in fade-in duration-500">
-      <ConversationList activeTab={tab} />
-      <ChatWindow />
+      <ConversationList 
+        activeTab={tab} 
+        activeConversationId={activeConversationId} 
+        onSelect={(id) => setActiveConversationId(id)} 
+      />
+      <ChatWindow activeConversationId={activeConversationId} />
       
       {/* Back to Monitor button - Floating */}
       <div className="absolute top-4 left-[380px] z-50">

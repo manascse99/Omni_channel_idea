@@ -11,10 +11,11 @@ import {
   ChevronRight,
   ChevronLeft,
   Menu,
-  Globe
+  Globe,
+  Bell
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../store/authStore';
+import useAuthStore from '../../store/authStore';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -26,6 +27,7 @@ export default function Sidebar() {
     { name: 'Conversations', path: '/conversations', icon: MessageSquare },
     { name: 'Analytics', path: '/analytics', icon: BarChart2 },
     { name: 'Teams', path: '/teams', icon: Users },
+    { name: 'Notifications', path: '/notifications', icon: Bell },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 

@@ -1,9 +1,14 @@
+import { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
+
 export default function ActivityFeed() {
-  const activities = [
-    { title: 'Auto-resolved Ticket #4829', time: 'System • 2 mins ago', type: 'success' },
-    { title: 'Escalated Ticket #4830 to Karan', time: 'AI Engine • 5 mins ago', type: 'alert' },
-    { title: 'Report "Daily Volume" Exported', time: 'System • 12 mins ago', type: 'neutral' },
-  ];
+  const [activities, setActivities] = useState([]);
+
+  useEffect(() => {
+    api.get('/dashboard/activity')
+      .then(res => setActivities(res.data.activities))
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex-1 flex flex-col">

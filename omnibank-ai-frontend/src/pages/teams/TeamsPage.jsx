@@ -1,41 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
 import { useParams } from 'react-router-dom';
 import TeamCard from '../../components/teams/TeamCard';
 import AgentAvailabilityTable from '../../components/teams/AgentAvailabilityTable';
 import AiLogicSection from '../../components/teams/AiLogicSection';
-import { Landmark, ShieldAlert, Headphones, Sparkles } from 'lucide-react';
+import { Landmark, ShieldAlert, Headphones, Sparkles, Users } from 'lucide-react';
 
 export default function TeamsPage() {
   const { tab } = useParams();
   const activeTab = tab ? tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ') : 'All Teams';
   const [autoAssign, setAutoAssign] = useState(true);
+  const [teams, setTeams] = useState([]);
 
-  const teams = [
-    { 
-      name: 'Loans Team', 
-      tag: 'HIGH AUTHORITY', 
-      agents: 12, 
-      active: 45, 
-      icon: Landmark, 
-      avatars: ['https://i.pravatar.cc/150?u=a', 'https://i.pravatar.cc/150?u=b', 'https://i.pravatar.cc/150?u=c'] 
-    },
-    { 
-      name: 'Grievance Team', 
-      tag: 'CRITICAL', 
-      agents: 8, 
-      active: 12, 
-      icon: ShieldAlert, 
-      avatars: ['https://i.pravatar.cc/150?u=d', 'https://i.pravatar.cc/150?u=e', 'https://i.pravatar.cc/150?u=f'] 
-    },
-    { 
-      name: 'General Support', 
-      tag: 'STANDARD', 
-      agents: 24, 
-      active: 89, 
-      icon: Headphones, 
-      avatars: ['https://i.pravatar.cc/150?u=g', 'https://i.pravatar.cc/150?u=h', 'https://i.pravatar.cc/150?u=i'] 
-    },
-  ];
+  useEffect(() => {
+    api.get('/teams')
+      .then(res => {
+        const mapped = res.data.teams.map(t => ({
+          name: t.name,
+          tag: t.tag,
+          agents: t.agents,
+          active: t.active,
+          icon: t.name.includes('Sales') ? Landmark : t.name.includes('Fraud') ? ShieldAlert : Headphones,
+          avatars: [] // Could be populated if needed
+        }));
+        setTeams(mapped);
+      })
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="p-10 max-w-[1400px] mx-auto h-full overflow-y-auto bg-white/50">
@@ -73,6 +64,11 @@ export default function TeamsPage() {
           {teams.map((team, idx) => (
             <TeamCard key={idx} {...team} />
           ))}
+          {teams.length === 0 && (
+            <div className="col-span-3 text-center py-20 bg-white rounded-3xl border border-gray-100 text-gray-400 font-bold">
+              No teams found in the database.
+            </div>
+          )}
         </div>
       )}
 
@@ -101,3 +97,4 @@ export default function TeamsPage() {
     </div>
   );
 }
+

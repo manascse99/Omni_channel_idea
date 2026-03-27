@@ -1,40 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
+import { io } from 'socket.io-client';
 import MonitorCard from './MonitorCard';
 import StrategyInsight from './StrategyInsight';
 import { Zap } from 'lucide-react';
 
 export default function LiveAiMonitor({ onSelectCard, activeTab }) {
   const [filter, setFilter] = useState('All');
+  const [monitors, setMonitors] = useState([]);
 
-  const monitors = [
-    { id: 1, name: 'Rajesh Kumar', status: 'AI HANDLING', waiting: '2m 14s', intent: 'Personal Loan', sentiment: 'Positive', confidence: 94, avatar: 'https://i.pravatar.cc/150?u=rajesh', channel: 'Direct' },
-    { id: 2, name: 'Isha Patel', status: 'NEEDS ATTENTION', waiting: '5m 45s', intent: 'Credit Limit', sentiment: 'Neutral', confidence: 62, avatar: 'https://i.pravatar.cc/150?u=esha', channel: 'Channels' },
-    { id: 3, name: 'Sameer Deshmukh', status: 'ESCALATED', waiting: '12m 02s', intent: 'Fraud Alert', sentiment: 'Urgent', confidence: 31, avatar: 'https://i.pravatar.cc/150?u=sameer', channel: 'Channels' },
-    { id: 4, name: 'Kavita Reddy', status: 'AI HANDLING', waiting: '0m 45s', intent: 'Balance Query', sentiment: 'Positive', confidence: 98, avatar: 'https://i.pravatar.cc/150?u=kavita', channel: 'Direct' },
-    { id: 5, name: 'Zaid Khan', status: 'AI HANDLING', waiting: '1m 30s', intent: 'New Credit Card', sentiment: 'Curious', confidence: 89, avatar: 'https://i.pravatar.cc/150?u=zaid', channel: 'Channels' },
-    { id: 6, name: 'Anjali Gupta', status: 'NEEDS ATTENTION', waiting: '8m 22s', intent: 'App Login Issue', sentiment: 'Frustrated', confidence: 45, avatar: 'https://i.pravatar.cc/150?u=anjali', channel: 'Direct' },
-    { id: 7, name: 'AI Bot 1', status: 'AI HANDLING', waiting: '0m 01s', intent: 'Greeting', sentiment: 'Positive', confidence: 99, avatar: 'https://i.pravatar.cc/150?u=bot1', channel: 'AI-Assisted' },
-  ];
+  useEffect(() => {
+    fetchConversations();
 
-  const filteredMonitors = filter === 'All' 
-    ? monitors 
-    : monitors.filter(m => m.status.toLowerCase().includes(filter.toLowerCase().replace('handling', 'handling').replace('attention', 'attention').replace('escalated', 'escalated')));
+    // Listen for real-time new conversations
+    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
+    socket.on('new_message', () => fetchConversations());
+    socket.on('conversation_updated', () => fetchConversations());
 
-  // Improved mapping for status to filter tabs
+    return () => socket.disconnect();
+  }, []);
+
+  const fetchConversations = () => {
+    api.get('/conversations')
+      .then(res => {
+        const mapped = res.data.conversations.map(c => ({
+          id: c._id,
+          name: c.userId?.name || c.userId?.phone || 'Unknown User',
+          status: c.status === 'ai-handling' ? 'AI HANDLING' : c.status === 'escalated' ? 'ESCALATED' : 'NEEDS ATTENTION',
+          waiting: timeSince(c.updatedAt),
+          intent: c.intent || 'General',
+          sentiment: c.sentiment || 'Neutral',
+          confidence: c.status === 'ai-handling' ? 90 : c.status === 'escalated' ? 30 : 60,
+          avatar: null,
+          channel: c.lastChannel === 'whatsapp' ? 'Direct' : c.lastChannel === 'email' ? 'Channels' : 'AI-Assisted'
+        }));
+        setMonitors(mapped);
+      })
+      .catch(console.error);
+  };
+
+  const timeSince = (dateStr) => {
+    const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${String(secs).padStart(2, '0')}s`;
+  };
+
   const getFilteredMonitors = () => {
     let result = monitors;
-    
-    // Filter by Header Tab (Channel)
     if (activeTab && activeTab !== 'all') {
       const channelLabel = activeTab.replace('-', ' ').toLowerCase();
       result = result.filter(m => m.channel.toLowerCase() === channelLabel);
     }
-
-    // Filter by Local Tab (Status)
     if (filter === 'AI Handling') result = result.filter(m => m.status === 'AI HANDLING');
     if (filter === 'Needs Attention') result = result.filter(m => m.status === 'NEEDS ATTENTION');
     if (filter === 'Escalated') result = result.filter(m => m.status === 'ESCALATED');
-    
     return result;
   };
 
@@ -47,7 +67,7 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
           <h2 className="text-[28px] font-extrabold text-primary tracking-tight leading-none mb-2">Live AI Monitor</h2>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <p className="text-[11px] font-bold text-teal uppercase tracking-widest">Messages/Sec: 4.2</p>
+            <p className="text-[11px] font-bold text-teal uppercase tracking-widest">{monitors.length} Active Conversations</p>
           </div>
         </div>
 
@@ -74,11 +94,15 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
             <MonitorCard data={m} onTakeOver={() => onSelectCard(m.id)} />
           </div>
         ))}
+        {getFilteredMonitors().length === 0 && (
+          <div className="col-span-3 text-center py-20 text-gray-400 font-bold text-lg">
+            No conversations here yet. Waiting for incoming messages…
+          </div>
+        )}
       </div>
 
       <StrategyInsight />
 
-      {/* Floating Action Button for manual override or quick actions */}
       <button className="fixed bottom-10 right-10 w-14 h-14 bg-teal rounded-2xl flex items-center justify-center text-primary shadow-2xl hover:scale-110 transition-transform z-50">
         <Zap size={24} fill="currentColor" />
       </button>

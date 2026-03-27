@@ -1,11 +1,26 @@
+import { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
 import { ArrowRight, User, AlertTriangle } from 'lucide-react';
 
 export default function RecentConversations() {
-  const convos = [
-    { name: 'Sanya Iyer', time: '2 MINS AGO', msg: 'I am trying to authorize a wire transfer but the OTP is not arriving on...', tags: [{ label: 'WHATSAPP', color: 'green' }, { label: 'HIGH PRIORITY', color: 'orange', icon: 'alert' }] },
-    { name: 'Adani Realty Group', time: '15 MINS AGO', msg: 'Requesting bulk statements for the 2023 fiscal year across all child accounts.', tags: [{ label: 'EMAIL', color: 'gray' }, { label: 'BUSINESS TIER', color: 'gray' }] },
-    { name: 'Arjun Reddy', time: '1 HOUR AGO', msg: 'Is the branch on MG Road, Bangalore open today for locker access?', tags: [{ label: 'WEB CHAT', color: 'blue' }, { label: 'AI RESOLVED', color: 'teal' }] },
-  ];
+  const [convos, setConvos] = useState([]);
+
+  useEffect(() => {
+    api.get('/conversations?limit=3')
+      .then(res => {
+        const mapped = res.data.conversations.map(c => ({
+          name: c.userId?.name || c.userId?.phone || 'Unknown User',
+          time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          msg: c.lastMessage || 'No message context',
+          tags: [
+            { label: (c.lastChannel || 'Unknown').toUpperCase(), color: c.lastChannel === 'whatsapp' ? 'green' : c.lastChannel === 'email' ? 'gray' : 'blue' },
+            { label: (c.status || 'open').toUpperCase(), color: c.status === 'ai-handling' ? 'teal' : c.status === 'resolved' ? 'gray' : 'orange' }
+          ]
+        }));
+        setConvos(mapped);
+      })
+      .catch(console.error);
+  }, []);
 
   const badgeColors = {
     green: 'text-green-700 bg-green-50 border-green-200',

@@ -1,8 +1,9 @@
 import { create } from 'zustand';
+import authService from '../services/authService';
 
 const stored = JSON.parse(sessionStorage.getItem('omni_user') || 'null');
 
-export const useAuthStore = create((set) => ({
+const useAuthStore = create((set) => ({
   user: stored?.user || null,
   token: stored?.token || null,
   isAuthenticated: !!stored?.token,
@@ -21,8 +22,30 @@ export const useAuthStore = create((set) => ({
     });
   },
 
+  updateUserAsync: async (updates) => {
+    try {
+      const state = useAuthStore.getState();
+      const token = state.token;
+      const response = await authService.updateAgent(updates, token);
+      if (response.success) {
+        set((state) => {
+          const updated = { ...state.user, ...response.agent };
+          sessionStorage.setItem('omni_user', JSON.stringify({ user: updated, token }));
+          return { user: updated };
+        });
+        return true;
+      }
+    } catch (err) {
+      console.error('Update failed:', err);
+      return false;
+    }
+  },
+
   logout: () => {
     sessionStorage.removeItem('omni_user');
     set({ user: null, token: null, isAuthenticated: false });
   },
 }));
+
+export default useAuthStore;
+

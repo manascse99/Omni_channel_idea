@@ -1,151 +1,177 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import AuthLayout from './AuthLayout';
-import OtpInput from './OtpInput';
-import { useAuthStore } from '../../store/authStore';
-import { ArrowRight, Phone, Globe } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Mail, ShieldCheck, ArrowRight, User, Globe, Phone } from 'lucide-react';
+import authService from '../../services/authService';
+import useAuthStore from '../../store/authStore';
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState(1); // 1: Email, 2: OTP
   const [loading, setLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(45);
+  const [error, setError] = useState('');
+  
   const navigate = useNavigate();
-  const { setAuth } = useAuthStore();
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  const handleSendOtp = (e) => {
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated) navigate('/dashboard');
+  }, [isAuthenticated, navigate]);
+
+  const handleSendOtp = async (e) => {
     e.preventDefault();
-    if (phone.length < 10) return;
     setLoading(true);
-    setTimeout(() => {
+    setError('');
+    try {
+      const data = await authService.sendOtp(email);
+      if (data.success) {
+        if (data.isNewUser) {
+          // If new user, redirect to Signup with email param
+          navigate(`/signup?email=${encodeURIComponent(email)}`);
+        } else {
+          setStep(2);
+        }
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to send OTP. Please try again.');
+    } finally {
       setLoading(false);
-      setOtpSent(true);
-      // Start resend countdown
-      let t = 45;
-      const interval = setInterval(() => {
-        t--;
-        setResendTimer(t);
-        if (t <= 0) clearInterval(interval);
-      }, 1000);
-    }, 1000);
+    }
   };
 
-  const handleVerify = () => {
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setAuth(
-        { id: 1, name: 'Manas Srivastava', role: 'Senior Agent', phone: `+91 ${phone}`, avatar: 'MS', email: 'manas@omni.ai' },
-        'omni-jwt-token-mock'
-      );
-      navigate('/dashboard');
-    }, 800);
+    setError('');
+    try {
+      const data = await authService.verifyOtp(email, otp);
+      if (data.success) {
+        setAuth(data.agent, data.token);
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Invalid OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <AuthLayout>
-      <div className="mb-8">
-        <h2 className="text-white text-2xl font-black tracking-tight mb-1">Welcome back</h2>
-        <p className="text-white/40 text-sm font-medium">Sign in to your OMNI workspace</p>
-      </div>
+    <div className="min-h-screen w-full bg-[#0F172A] flex items-center justify-center p-6 relative overflow-hidden font-inter">
+      {/* Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-teal/10 blur-[120px] rounded-full animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full"></div>
 
-      <form onSubmit={handleSendOtp} className="space-y-5">
-        {/* Phone Number */}
-        <div>
-          <label className="block text-white/60 text-[11px] font-bold uppercase tracking-widest mb-2">
-            Mobile Number
-          </label>
-          <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl h-14 overflow-hidden focus-within:border-teal/60 focus-within:bg-white/[0.08] transition-all">
-            {/* Fixed +91 India code */}
-            <div className="flex items-center gap-2 px-4 border-r border-white/10 h-full shrink-0">
-              <Globe size={18} className="text-teal" />
-              <span className="text-white/70 font-bold text-sm">+91</span>
-            </div>
-            <div className="flex items-center gap-3 flex-1 px-4">
-              <Phone size={16} className="text-white/30 shrink-0" />
-              <input
-                type="tel"
-                maxLength={10}
-                className="flex-1 bg-transparent outline-none text-white font-semibold placeholder-white/20 text-[15px]"
-                placeholder="00000 00000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                onFocus={() => setOtpSent(false)}
-                required
-              />
-            </div>
+      <div className="w-full max-w-[440px] relative z-10">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center mb-10 group cursor-default">
+          <div className="w-16 h-16 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[22px] flex items-center justify-center mb-4 transition-all duration-500 group-hover:scale-110 group-hover:bg-white/10 shadow-2xl shadow-teal/5">
+             <div className="w-8 h-8 bg-teal rounded-lg flex items-center justify-center">
+                <ShieldCheck className="text-white" size={20} />
+             </div>
           </div>
+          <h1 className="text-3xl font-black text-white tracking-tight mb-1">OMNI<span className="text-teal">BANK</span></h1>
+          <p className="text-slate-400 font-medium text-sm tracking-wide">Artificial Intelligence Platform v2.0</p>
         </div>
 
-        {!otpSent && (
-          <button
-            type="submit"
-            disabled={phone.length < 10 || loading}
-            className="w-full bg-teal hover:bg-[#00b395] text-primary font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal/20 disabled:opacity-40 disabled:cursor-not-allowed mt-2"
-          >
-            {loading ? (
-              <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-              </svg>
+        {/* Card */}
+        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] p-10 shadow-3xl shadow-black/40">
+          <div className="mb-8 text-center sm:text-left">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {step === 1 ? 'Welcome back' : 'Confirm Identity'}
+            </h2>
+            <p className="text-slate-400 text-sm font-medium">
+              {step === 1 ? 'Sign in to your OMNI workspace' : `We've sent a 6-digit code to ${email}`}
+            </p>
+          </div>
+
+          <form onSubmit={step === 1 ? handleSendOtp : handleVerifyOtp} className="space-y-6">
+            {step === 1 ? (
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Work Email</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal transition-colors">
+                    <Mail size={18} />
+                  </div>
+                  <input 
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@omnibank.ai"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal/50 focus:bg-white/10 transition-all font-medium"
+                  />
+                </div>
+              </div>
             ) : (
-              <>Send OTP via WhatsApp <ArrowRight size={18} /></>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Verification Code</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal transition-colors">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <input 
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={otp}
+                    onKeyPress={(e) => !/[0-9]/.test(e.key) && e.preventDefault()}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="000000"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal/50 focus:bg-white/10 transition-all font-medium tracking-[0.5em] text-center"
+                  />
+                </div>
+              </div>
             )}
-          </button>
-        )}
-      </form>
 
-      {/* OTP Section */}
-      {otpSent && (
-        <div className="mt-6 space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="h-px bg-white/10" />
-          <div>
-            <label className="block text-white/60 text-[11px] font-bold uppercase tracking-widest mb-4 text-center">
-              Enter OTP sent to +91 {phone}
-            </label>
-            <OtpInput length={6} onComplete={handleVerify} />
-          </div>
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-2">
+                 <p className="text-red-400 text-xs text-center font-medium leading-relaxed">{error}</p>
+              </div>
+            )}
 
-          <div className="flex items-center justify-between text-[12px] px-1">
-            <span className="text-white/40 font-medium">
-              {resendTimer > 0 ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse inline-block" />
-                  Resend in 0:{String(resendTimer).padStart(2, '0')}
-                </span>
-              ) : (
-                <span className="text-white/40">OTP expired</span>
-              )}
-            </span>
-            <button
-              onClick={() => { setOtpSent(false); setResendTimer(45); }}
-              className="text-teal hover:text-teal/80 font-bold transition-colors"
+            <button 
+              type="submit"
+              disabled={loading}
+              className={`w-full group bg-teal hover:bg-teal/90 text-primary font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-xl shadow-teal/10 hover:shadow-teal/20 active:scale-[0.98] ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              Resend OTP
+              {loading ? (
+                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  {step === 1 ? 'Verify Email' : 'Authorize & Enter'} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </button>
+          </form>
+
+          {step === 2 && (
+            <button 
+              onClick={() => { setStep(1); setOtp(''); }}
+              className="w-full mt-6 text-slate-500 hover:text-white text-xs font-bold transition-colors"
+            >
+              Use a different email address
+            </button>
+          )}
+
+          <div className="mt-8 flex justify-center items-center gap-2 text-[11px] font-bold">
+             <span className="text-slate-500">New to OMNI?</span>
+             <button 
+               onClick={() => navigate('/signup')} 
+               className="text-teal hover:underline"
+             >
+               Create account
+             </button>
           </div>
-
-          <button
-            onClick={handleVerify}
-            className="w-full bg-teal hover:bg-[#00b395] text-primary font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal/20"
-          >
-            {loading ? (
-              <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-              </svg>
-            ) : 'Verify & Sign In'}
-          </button>
         </div>
-      )}
 
-      <div className="mt-6 text-center">
-        <p className="text-white/30 text-[13px]">
-          New to OMNI?{' '}
-          <Link to="/signup" className="text-teal hover:text-teal/80 font-bold transition-colors">
-            Create account
-          </Link>
+        {/* Footer */}
+        <p className="text-center mt-8 text-[10px] text-slate-600 font-bold uppercase tracking-[0.2em]">
+          Secured by OmniGuard Protocol
         </p>
       </div>
-    </AuthLayout>
+    </div>
   );
 }

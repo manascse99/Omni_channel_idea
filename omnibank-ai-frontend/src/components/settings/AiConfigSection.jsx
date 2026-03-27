@@ -114,7 +114,7 @@ export default function AiConfigSection() {
           </div>
         </div>
         <div className="space-y-2">
-          {localIntents.map((item, i) => (
+          {localIntents.length > 0 ? localIntents.map((item, i) => (
             <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
               <div className="flex items-center gap-3">
                 <span className={`w-2 h-2 rounded-full ${item.active ? 'bg-teal' : 'bg-gray-300'}`} />
@@ -130,7 +130,11 @@ export default function AiConfigSection() {
                 </button>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">No custom intents mapped</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

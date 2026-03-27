@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Globe, MessageSquare, Check, Smartphone, Phone, Mail, Camera } from 'lucide-react';
 
 const CHANNELS = [
-  { id: 'whatsapp', label: 'WhatsApp Business', icon: MessageSquare, color: 'text-green-600 bg-green-50', connected: true, msgs: '8,421', uptime: '99.9%' },
-  { id: 'sms', label: 'SMS / Twilio', icon: Smartphone, color: 'text-blue-500 bg-blue-50', connected: true, msgs: '2,140', uptime: '99.7%' },
-  { id: 'voice', label: 'Voice / IVR', icon: Phone, color: 'text-purple-500 bg-purple-50', connected: true, msgs: '932', uptime: '98.5%' },
-  { id: 'email', label: 'Email', icon: Mail, color: 'text-amber-500 bg-amber-50', connected: false, msgs: '—', uptime: '—' },
-  { id: 'instagram', label: 'Instagram DM', icon: Camera, color: 'text-rose-500 bg-rose-50', connected: false, msgs: '—', uptime: '—' },
-  { id: 'web', label: 'Web Chat Widget', icon: Globe, color: 'text-teal bg-teal/10', connected: true, msgs: '5,287', uptime: '100%' },
+  { id: 'whatsapp', label: 'WhatsApp Business', icon: MessageSquare, color: 'text-green-600 bg-green-50', connected: false, msgs: '0', uptime: '100%' },
+  { id: 'sms', label: 'SMS / Twilio', icon: Smartphone, color: 'text-blue-500 bg-blue-50', connected: false, msgs: '0', uptime: '100%' },
+  { id: 'voice', label: 'Voice / IVR', icon: Phone, color: 'text-purple-500 bg-purple-50', connected: false, msgs: '0', uptime: '100%' },
+  { id: 'email', label: 'Email', icon: Mail, color: 'text-amber-500 bg-amber-50', connected: false, msgs: '0', uptime: '100%' },
+  { id: 'instagram', label: 'Instagram DM', icon: Camera, color: 'text-rose-500 bg-rose-50', connected: false, msgs: '0', uptime: '100%' },
+  { id: 'web', label: 'Web Chat Widget', icon: Globe, color: 'text-teal bg-teal/10', connected: true, msgs: '0', uptime: '100%' },
 ];
 
 export default function ChannelConfigSection() {

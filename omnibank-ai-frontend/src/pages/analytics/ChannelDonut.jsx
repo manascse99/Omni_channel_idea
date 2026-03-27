@@ -1,50 +1,50 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { useState, useEffect } from 'react';
+import api from '../../services/apiClient';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function ChannelDonut() {
-  const data = [
-    { name: 'WhatsApp', value: 55, color: '#00C9A7' },
-    { name: 'Email', value: 25, color: '#1A2B4A' },
-    { name: 'Web Chat', value: 20, color: '#FBBF24' },
-  ];
+  const [data, setData] = useState([]);
+  const COLORS = ['#0F2F55', '#00CCA3', '#D9873E', '#6366f1'];
+
+  useEffect(() => {
+    api.get('/analytics/charts')
+      .then(res => setData(res.data.channels))
+      .catch(console.error);
+  }, []);
 
   return (
-    <div className="w-full flex-1 flex flex-col min-h-[300px]">
-      <h3 className="text-[15px] font-bold text-gray-900 mb-6 tracking-wide">Channel Distribution</h3>
-      <div className="flex-1 relative h-[200px]">
+    <div className="h-full flex flex-col">
+      <h3 className="text-[15px] font-bold text-gray-900 tracking-wide mb-6">Channel Distribution</h3>
+      <div className="flex-1 min-h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
-              innerRadius={75}
-              outerRadius={95}
-              paddingAngle={0}
+              innerRadius={65}
+              outerRadius={90}
+              paddingAngle={5}
               dataKey="value"
-              stroke="none"
             >
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={4} />
               ))}
             </Pie>
-            <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+            <Tooltip 
+              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+            />
           </PieChart>
         </ResponsiveContainer>
-        {/* Center Text */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-1">
-           <span className="text-[28px] font-extrabold text-primary leading-none">100%</span>
-           <span className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-2">Total Reach</span>
-        </div>
       </div>
-      {/* Legend below stacked */}
-      <div className="flex flex-col gap-4 mt-6 px-4">
-         {data.map(d => (
-           <div key={d.name} className="flex flex-row justify-between items-center w-full">
-              <div className="flex flex-row items-center gap-3">
-                 <span className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: d.color}}></span>
-                 <span className="text-[13px] text-gray-700 font-medium">{d.name}</span>
-              </div>
-              <span className="text-[13px] font-bold text-gray-900">{d.value}%</span>
-           </div>
-         ))}
+      <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 ml-2">
+        {data.map((item, index) => (
+          <div key={item.name} className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{item.name}</span>
+          </div>
+        ))}
+        {data.length === 0 && (
+          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Loading...</span>
+        )}
       </div>
     </div>
   );

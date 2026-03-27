@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import useAuthStore from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import {
   User, Mail, Phone, Briefcase, Shield, Camera,
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { user, updateUser, logout } = useAuthStore();
+  const { user, updateUserAsync, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const [editing, setEditing] = useState(false);
@@ -24,13 +24,18 @@ export default function ProfilePage() {
   });
 
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [notifs, setNotifs] = useState({ email: true, sms: false, push: true, weekly: true });
 
-  const handleSave = () => {
-    updateUser(form);
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    setLoading(true);
+    const success = await updateUserAsync(form);
+    setLoading(false);
+    if (success) {
+      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    }
   };
 
   const handleLogout = () => { logout(); navigate('/login'); };
