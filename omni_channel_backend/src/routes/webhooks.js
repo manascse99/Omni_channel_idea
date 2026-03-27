@@ -74,8 +74,10 @@ router.post('/whatsapp', async (req, res) => {
 
         console.log(`Successfully processed WhatsApp message for user ${user._id}. Intended Reply: ${result.aiResult.reply}`);
         
-        // TODO: In a full system, you would now trigger the socket.io event emit here
-        // and optionally call the Meta API to send the AI reply back.
+        // 3. Emit Socket event for real-time dashboard update (AI-ready)
+        if (req.socketService) {
+          req.socketService.emitAiResults(result.conversation, result.newMessage, result.aiMessage);
+        }
       }
     } catch (error) {
       console.error('Error processing WhatsApp webhook:', error);

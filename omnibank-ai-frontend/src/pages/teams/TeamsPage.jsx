@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import TeamCard from '../../components/teams/TeamCard';
 import AgentAvailabilityTable from '../../components/teams/AgentAvailabilityTable';
 import AiLogicSection from '../../components/teams/AiLogicSection';
+import SupervisorInsights from '../../components/teams/SupervisorInsights';
 import { Landmark, ShieldAlert, Headphones, Sparkles, Users } from 'lucide-react';
 
 export default function TeamsPage() {
@@ -79,15 +80,8 @@ export default function TeamsPage() {
       )}
 
       {activeTab === 'Supervisors' && (
-        <div className="bg-white rounded-3xl p-12 border-2 border-dashed border-gray-100 flex flex-col items-center justify-center text-center">
-          <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center text-primary mb-6">
-            <ShieldAlert size={40} />
-          </div>
-          <h3 className="text-2xl font-black text-primary mb-3">Supervisor Dashboard</h3>
-          <p className="text-gray-500 max-w-lg mb-8">Access advanced controls, escalation overrides, and structural team management tools.</p>
-          <button className="bg-primary text-white font-bold px-8 py-3 rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all">
-            Enter Management Console
-          </button>
+        <div className="mb-10">
+          <SupervisorInsights />
         </div>
       )}
 

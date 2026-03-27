@@ -1,3 +1,6 @@
+const identityService = require('../services/identityService');
+const conversationService = require('../services/conversationService');
+
 const socketManager = (io) => {
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
@@ -8,30 +11,44 @@ const socketManager = (io) => {
       console.log(`Socket ${socket.id} joined conversation ${conversationId}`);
     });
 
-    // Leave a conversation room
-    socket.on('leave_conversation', ({ conversationId }) => {
-      socket.leave(conversationId);
-      console.log(`Socket ${socket.id} left conversation ${conversationId}`);
-    });
-
-    // Handle generic unauthenticated Web Chat client message
+    // Handle Web Chat customer message
     socket.on('send_message', async (data) => {
-      console.log(`Received Web Chat message from socket ${socket.id}:`, data);
-      
-      // In a full implementation, you'd link this to IdentityService here.
-      // But for the scope of the backend routes, we simply echo back or 
-      // broadcast to the agent dashboard.
-      const timestamp = new Date();
-      io.emit('new_message', {
-        conversationId: data.conversationId || 'webchat-session',
-        message: {
-          content: data.content,
-          senderType: 'user',
-          channel: 'webchat',
-          timestamp
-        },
-        channel: 'webchat'
-      });
+      try {
+        const { content, email, phone, name } = data;
+        
+        // 1. Resolve Identity (Web Chat)
+        // Using email/phone if provided, otherwise using socket ID as a temporary identifier
+        const identifier = email || phone || `socket_${socket.id}`;
+        const { user } = await identityService.resolveIdentity('webchat', identifier, name);
+
+        // 2. Process Message + Run AI Pipeline
+        const { conversation, newMessage, aiMessage } = await conversationService.processIncomingMessage(
+          user, 
+          'webchat', 
+          content
+        );
+
+        // 3. Emit events
+        // To the specific conversation room (User view)
+        io.to(conversation._id.toString()).emit('new_message', {
+          conversationId: conversation._id,
+          message: newMessage,
+          channel: 'webchat'
+        });
+
+        // To everyone (Agent Dashboard view) - Includes AI results
+        io.emit('conversation_updated', {
+          conversationId: conversation._id,
+          status: conversation.status,
+          sentiment: conversation.sentiment,
+          intent: conversation.intent,
+          aiSuggestion: aiMessage.content,
+          lastMessage: content.substring(0, 100)
+        });
+
+      } catch (error) {
+        console.error('Socket: Error processing send_message:', error);
+      }
     });
 
     socket.on('disconnect', () => {
@@ -39,19 +56,30 @@ const socketManager = (io) => {
     });
   });
 
-  // Exportable emitter function for use in standard Express routes
   return {
-    emitNewMessage: (conversationId, message, channel) => {
-      io.to(conversationId).emit('new_message', { conversationId, message, channel });
-    },
-    emitConversationUpdated: (conversationId, status, sentiment, intent) => {
-      io.emit('conversation_updated', { conversationId, status, sentiment, intent });
-    },
-    emitAgentAssigned: (conversationId, agentId, teamId) => {
-      io.emit('agent_assigned', { conversationId, agentId, teamId });
-    },
-    emitAiReplySent: (conversationId, message) => {
-      io.to(conversationId).emit('ai_reply_sent', { conversationId, message });
+    // Helper to emit AI results from external services (Webhooks/Email)
+    emitAiResults: (conversation, newMessage, aiMessage) => {
+      if (!conversation || !newMessage) return; // Safety guard
+
+      const conversationId = conversation._id.toString();
+      const aiContent = aiMessage?.content || ''; // Guard against undefined aiMessage
+      
+      // Notify the specific chat room
+      io.to(conversationId).emit('new_message', { 
+        conversationId, 
+        message: newMessage, 
+        channel: newMessage.channel 
+      });
+
+      // Notify the dashboard
+      io.emit('conversation_updated', { 
+        conversationId, 
+        status: conversation.status, 
+        sentiment: conversation.sentiment, 
+        intent: conversation.intent,
+        aiSuggestion: aiContent,
+        lastMessage: newMessage.content?.substring(0, 100) || ''
+      });
     }
   };
 };

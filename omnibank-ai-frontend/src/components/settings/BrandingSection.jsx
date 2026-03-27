@@ -17,13 +17,18 @@ const ACCENTS = [
 
 const FONTS = ['Inter', 'DM Sans', 'Satoshi', 'Geist'];
 
-export default function BrandingSection() {
+export default function BrandingSection({ settings, onUpdate }) {
+  const { companyName: customName, tagline, primaryColor: accent } = settings;
+
+  const setCustomName = (val) => onUpdate({ companyName: val });
+  const setTagline = (val) => onUpdate({ tagline: val });
+  const setAccent = (val) => onUpdate({ primaryColor: val });
+
+  // For now, we'll keep theme/font/compactMode as local state or add them to the model if needed. 
+  // The current Settings model only has companyName, tagline, primaryColor.
   const [theme, setTheme] = useState('light');
-  const [accent, setAccent] = useState('teal');
   const [font, setFont] = useState('Inter');
   const [compactMode, setCompactMode] = useState(false);
-  const [customName, setCustomName] = useState('OMNI');
-  const [tagline, setTagline] = useState('AI-OMNICHANNEL');
 
   return (
     <div className="space-y-5">
@@ -38,7 +43,7 @@ export default function BrandingSection() {
         </div>
         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Color Theme</p>
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {THEMES.map(({ id, label, icon: Icon, preview }) => (
+          {THEMES.map(({ id, label, preview }) => (
             <button
               key={id}
               onClick={() => setTheme(id)}

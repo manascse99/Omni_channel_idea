@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Zap, TrendingUp } from 'lucide-react';
+import api from '../../services/apiClient';
 
 export default function StrategyInsight() {
+  const [stats, setStats] = useState({ 
+    aiResolvedRate: '0%', 
+    topIntent: { name: 'General', rate: '0%' },
+    aiMetrics: { modelConfidence: '0%', avgMessagesPerSec: '0.00', autoResolveRate: '0%' }
+  });
+
+  useEffect(() => {
+    api.get('/analytics/overview')
+      .then(res => setStats(res.data))
+      .catch(console.error);
+  }, []);
+
   return (
     <div className="mt-8 bg-[#050B1C] rounded-[24px] p-8 relative overflow-hidden flex items-center justify-between group shadow-xl border border-white/5">
       {/* Background patterns */}
@@ -20,20 +33,20 @@ export default function StrategyInsight() {
           AI Strategy Insight
         </div>
         <h3 className="text-[28px] font-bold text-white mb-2 leading-tight">
-          Automated resolution rate is up by 12% today.
+          Automated resolution rate is at {stats.aiResolvedRate} today.
         </h3>
         <p className="text-gray-400 text-[14px] leading-relaxed max-w-xl">
-          The AI Agent is handling high volumes of "Personal Loan" queries with 94%+ confidence. No agent intervention is currently needed for this category.
+          The AI Agent is handling incoming queries with {stats.aiMetrics.modelConfidence} confidence. Most active category: {stats.topIntent.name}.
         </p>
       </div>
 
       <div className="relative z-10 flex items-center gap-8 pr-4">
         <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10 flex flex-col items-center justify-center min-w-[140px] shadow-lg group-hover:bg-white/10 transition-colors">
-          <p className="text-[32px] font-black text-teal leading-none mb-1">88%</p>
+          <p className="text-[32px] font-black text-teal leading-none mb-1">{stats.aiMetrics.autoResolveRate}</p>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Auto-Resolve</p>
         </div>
         <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10 flex flex-col items-center justify-center min-w-[140px] shadow-lg group-hover:bg-white/10 transition-colors">
-          <p className="text-[32px] font-black text-white leading-none mb-1">4.2</p>
+          <p className="text-[32px] font-black text-white leading-none mb-1">{stats.aiMetrics.avgMessagesPerSec}</p>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Messages / Sec</p>
         </div>
       </div>

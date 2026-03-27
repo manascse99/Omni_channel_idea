@@ -16,7 +16,6 @@ async function callOllama(prompt, systemContext = '') {
     });
     return response.data.response;
   } catch (error) {
-    console.error('Ollama API Error:', error.message);
     return null;
   }
 }
@@ -28,24 +27,28 @@ async function processMessage(messageContent, conversationHistory = []) {
   const historyText = conversationHistory.map(m => `${m.senderType.toUpperCase()}: ${m.content}`).join('\n');
   
   const systemPrompt = `
-You are the AI brain behind OmniBank, a modern digital bank. Your job is to process customer messages.
-Given the customer message and conversation history, return a JSON object with EXACTLY these keys:
-- "intent": a short string like "loan_inquiry", "balance_check", "grievance", or "general"
-- "sentiment": "positive", "neutral", or "negative"
-- "summary": a 2-3 sentence summary of the entire conversation thread so far
-- "reply": a natural, helpful reply draft from the bank to the customer
-Return ONLY valid JSON. Do not include markdown formatting or extra text.
-  `;
+- System: You are "OmniBank AI Monitor", a professional banking assistant.
+- Task: Analyze the latest customer message within the context of the conversation history.
+- Response Format: Return ONLY a JSON object. No markdown, no pre-amble.
+- JSON structure:
+  {
+    "intent": "loan_inquiry" | "complaint" | "support" | "account_access" | "fraud_alert" | "general",
+    "sentiment": "positive" | "neutral" | "negative",
+    "confidence": 0-100,
+    "summary": "1-sentence summary of the user's current need",
+    "reply": "A concise, professional bank-style draft reply"
+  }
+`;
 
   const userPrompt = `
 Conversation History:
 ${historyText}
 
-Latest Customer Message:
-${messageContent}
+Latest Message from Customer:
+"${messageContent}"
 
-Return the JSON block.
-  `;
+JSON Response:
+`;
 
   const rawResponse = await callOllama(userPrompt, systemPrompt);
   
@@ -53,23 +56,33 @@ Return the JSON block.
     return {
       intent: 'general',
       sentiment: 'neutral',
-      summary: 'Error processing context via AI',
-      reply: 'We are experiencing high traffic. An agent will be with you shortly.'
+      confidence: 50,
+      summary: 'AI currently unavailable',
+      reply: 'Thanks for reaching out! Our team will get back to you shortly.'
     };
   }
 
   try {
-    // Attempt to parse the JSON. 
-    // Sometimes LLaMA wraps it in markdown like ```json ... ```
-    const cleanJson = rawResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanJson);
+    // Robust JSON extraction
+    const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in response");
+    
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      intent: parsed.intent || 'general',
+      sentiment: parsed.sentiment || 'neutral',
+      confidence: parsed.confidence || 85,
+      summary: parsed.summary || 'Customer message received',
+      reply: parsed.reply || 'Connecting you with an agent...'
+    };
   } catch (e) {
-    console.error("Failed to parse Ollama JSON:", rawResponse);
+    console.error("AI: Failed to parse Ollama JSON. Raw:", rawResponse);
     return {
       intent: 'general',
       sentiment: 'neutral',
-      summary: 'AI processed',
-      reply: 'Thanks for reaching out. We will get back to you.'
+      confidence: 50,
+      summary: 'Message received',
+      reply: 'Thank you for your message. We are reviewing it now.'
     };
   }
 }

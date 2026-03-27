@@ -1,11 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useAuthStore from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/apiClient';
 import {
   User, Mail, Phone, Briefcase, Shield, Camera,
   Save, LogOut, Bell, Globe, Lock, ChevronRight, Edit3,
   Star, Bot, MessageSquare
 } from 'lucide-react';
+
+const InputRow = ({ label, icon: Icon, field, form, setForm, editing, type = 'text' }) => (
+  <div>
+    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">{label}</label>
+    <div className={`flex items-center gap-3 border rounded-xl px-4 h-12 transition-all ${editing ? 'bg-white border-gray-200 focus-within:border-teal/60' : 'bg-gray-50 border-transparent'}`}>
+      <Icon size={15} className="text-gray-400 shrink-0" />
+      <input
+        type={type}
+        className="flex-1 bg-transparent outline-none text-[14px] font-semibold text-primary disabled:text-gray-500"
+        value={form[field]}
+        disabled={!editing}
+        onChange={e => setForm({ ...form, [field]: e.target.value })}
+      />
+    </div>
+  </div>
+);
 
 export default function ProfilePage() {
   const { user, updateUserAsync, logout } = useAuthStore();
@@ -21,11 +38,19 @@ export default function ProfilePage() {
     bio: user?.bio || 'Senior agent handling multi-channel customer queries.',
     location: user?.location || 'Mumbai, India',
     timezone: user?.timezone || 'IST (UTC+5:30)',
+    teamId: user?.teamId?._id || user?.teamId || '',
   });
 
+  const [teams, setTeams] = useState([]);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // eslint-disable-line no-unused-vars
   const [notifs, setNotifs] = useState({ email: true, sms: false, push: true, weekly: true });
+
+  useEffect(() => {
+    api.get('/teams')
+      .then(res => setTeams(res.data.teams))
+      .catch(console.error);
+  }, []);
 
   const handleSave = async () => {
     setLoading(true);
@@ -49,21 +74,6 @@ export default function ProfilePage() {
     { label: 'AI Assists', val: '342' },
   ];
 
-  const InputRow = ({ label, icon: Icon, field, type = 'text' }) => (
-    <div>
-      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">{label}</label>
-      <div className={`flex items-center gap-3 border rounded-xl px-4 h-12 transition-all ${editing ? 'bg-white border-gray-200 focus-within:border-teal/60' : 'bg-gray-50 border-transparent'}`}>
-        <Icon size={15} className="text-gray-400 shrink-0" />
-        <input
-          type={type}
-          className="flex-1 bg-transparent outline-none text-[14px] font-semibold text-primary disabled:text-gray-500"
-          value={form[field]}
-          disabled={!editing}
-          onChange={e => setForm({ ...form, [field]: e.target.value })}
-        />
-      </div>
-    </div>
-  );
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -158,12 +168,48 @@ export default function ProfilePage() {
               <User size={17} className="text-teal" /> Personal Information
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputRow label="Full Name" icon={User} field="name" />
-              <InputRow label="Work Email" icon={Mail} field="email" type="email" />
-              <InputRow label="Mobile" icon={Phone} field="phone" />
-              <InputRow label="Role / Title" icon={Briefcase} field="role" />
-              <InputRow label="Department" icon={Globe} field="department" />
-              <InputRow label="Location" icon={Globe} field="location" />
+              <InputRow label="Full Name" icon={User} field="name" form={form} setForm={setForm} editing={editing} />
+              <InputRow label="Work Email" icon={Mail} field="email" type="email" form={form} setForm={setForm} editing={editing} />
+              <InputRow label="Mobile" icon={Phone} field="phone" form={form} setForm={setForm} editing={editing} />
+              
+              {/* Role Selection */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Role / Title</label>
+                <div className={`flex items-center gap-3 border rounded-xl px-4 h-12 transition-all ${editing ? 'bg-white border-gray-200 focus-within:border-teal/60' : 'bg-gray-50 border-transparent'}`}>
+                  <Briefcase size={15} className="text-gray-400 shrink-0" />
+                  <select 
+                    disabled={!editing}
+                    className="flex-1 bg-transparent outline-none text-[14px] font-semibold text-primary disabled:text-gray-500 appearance-none cursor-pointer"
+                    value={form.role}
+                    onChange={e => setForm({ ...form, role: e.target.value })}
+                  >
+                    <option value="agent">Agent</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Domain (Team) Selection */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Domain / Team</label>
+                <div className={`flex items-center gap-3 border rounded-xl px-4 h-12 transition-all ${editing ? 'bg-white border-gray-200 focus-within:border-teal/60' : 'bg-gray-50 border-transparent'}`}>
+                  <Globe size={15} className="text-gray-400 shrink-0" />
+                  <select 
+                    disabled={!editing}
+                    className="flex-1 bg-transparent outline-none text-[14px] font-semibold text-primary disabled:text-gray-500 appearance-none cursor-pointer"
+                    value={form.teamId}
+                    onChange={e => setForm({ ...form, teamId: e.target.value })}
+                  >
+                    <option value="">No Team</option>
+                    {teams.map(t => (
+                      <option key={t._id} value={t._id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <InputRow label="Location" icon={Globe} field="location" form={form} setForm={setForm} editing={editing} />
             </div>
             <div className="mt-4">
               <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Bio</label>

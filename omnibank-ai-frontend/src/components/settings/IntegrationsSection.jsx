@@ -44,7 +44,7 @@ export default function IntegrationsSection() {
         <div key={cat} className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <h3 className="text-[13px] font-black text-gray-400 uppercase tracking-wider mb-4">{cat}</h3>
           <div className="space-y-3">
-            {integrations.filter(i => i.category === cat).map(({ name, logo: Icon, desc, connected }) => (
+            {integrations.filter(i => i.category === cat).map(({ name, desc, connected }) => (
               <div key={name} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-primary">

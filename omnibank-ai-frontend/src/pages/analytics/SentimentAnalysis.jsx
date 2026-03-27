@@ -4,9 +4,14 @@ import { BarChart, Bar, XAxis, ResponsiveContainer, Cell, Tooltip } from 'rechar
 import { Sparkles } from 'lucide-react';
 
 export default function SentimentAnalysis() {
+  const [stats, setStats] = useState({ nps: '0.0', sentimentTrend: '0%' });
   const [data, setData] = useState([]);
 
   useEffect(() => {
+    api.get('/analytics/overview')
+      .then(res => setStats(res.data))
+      .catch(console.error);
+    
     api.get('/analytics/charts')
       .then(res => setData(res.data.sentiments))
       .catch(console.error);
@@ -52,11 +57,11 @@ export default function SentimentAnalysis() {
       <div className="mt-4 flex justify-between items-center bg-gray-50 p-4 rounded-xl">
         <div>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Customer NPS</p>
-          <p className="text-xl font-black text-primary">72.4</p>
+          <p className="text-xl font-black text-primary">{stats.nps}</p>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Improving</p>
-          <p className="text-[12px] font-bold text-gray-400">+4.2% from last week</p>
+          <p className="text-[12px] font-bold text-gray-400">{stats.sentimentTrend} from last week</p>
         </div>
       </div>
     </div>

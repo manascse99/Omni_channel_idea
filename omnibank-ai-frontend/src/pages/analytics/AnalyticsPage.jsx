@@ -15,7 +15,14 @@ export default function AnalyticsPage() {
     totalMessages: 0, 
     aiResolvedRate: '0%', 
     avgSentiment: '0.0', 
-    topIntent: { name: 'None', rate: '0%' } 
+    topIntent: { name: 'None', rate: '0%' },
+    sentimentTrend: '+0.0%',
+    nps: '0',
+    aiMetrics: {
+      modelConfidence: '0%',
+      intentAccuracy: '0%',
+      autoResolveRate: '0%'
+    }
   });
 
   useEffect(() => {
@@ -54,10 +61,10 @@ export default function AnalyticsPage() {
              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
                <MessageSquare size={20} fill="currentColor" fillOpacity={0.2} />
              </div>
-             <div className="flex items-center gap-1 text-[11px] font-bold text-green-600 bg-white">
-               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
-               +12%
-             </div>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-green-600 bg-white">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+                {stats.sentimentTrend}
+              </div>
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-3">Total Messages</p>
@@ -161,9 +168,9 @@ export default function AnalyticsPage() {
             <p className="text-gray-500 max-w-md mx-auto mb-6">Deep dive into model confidence, intent accuracy, and automated resolution efficiency.</p>
             <div className="grid grid-cols-3 gap-8 w-full max-w-2xl">
               {[
-                { label: 'Model Confidence', value: '92.4%' },
-                { label: 'Intent Accuracy', value: '88.1%' },
-                { label: 'Auto-Resolve', value: '64.2%' }
+                { label: 'Model Confidence', value: stats.aiMetrics?.modelConfidence || '0%' },
+                { label: 'Intent Accuracy', value: stats.aiMetrics?.intentAccuracy || '0%' },
+                { label: 'Auto-Resolve', value: stats.aiMetrics?.autoResolveRate || '0%' }
               ].map(stat => (
                 <div key={stat.label} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">{stat.label}</p>

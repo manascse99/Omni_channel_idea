@@ -10,6 +10,7 @@ export default function AgentAvailabilityTable() {
         const mapped = res.data.agents.map(a => ({
           name: a.name,
           role: a.role.toUpperCase(),
+          teamName: a.teamId?.name || 'General',
           status: (a.status || 'Offline').charAt(0).toUpperCase() + (a.status || 'offline').slice(1),
           chats: a.activeChats || 0,
           resolved: a.resolvedToday || 0,
@@ -39,6 +40,7 @@ export default function AgentAvailabilityTable() {
           <tr className="text-left border-b border-gray-100">
             <th className="pb-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Agent Name</th>
             <th className="pb-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</th>
+            <th className="pb-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Team</th>
             <th className="pb-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
             <th className="pb-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Active Chats</th>
             <th className="pb-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Resolved Today</th>
@@ -56,6 +58,7 @@ export default function AgentAvailabilityTable() {
                 </div>
               </td>
               <td className="py-5 text-[14px] text-gray-500 font-medium">{agent.role}</td>
+              <td className="py-5 text-[14px] text-gray-500 font-medium">{agent.teamName}</td>
               <td className="py-5">
                 <div className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full ${agent.status === 'Online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-amber-400'}`}></span>

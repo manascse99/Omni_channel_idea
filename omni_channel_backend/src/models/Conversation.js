@@ -45,6 +45,10 @@ const conversationSchema = new mongoose.Schema({
   unreadCount: {
     type: Number,
     default: 0
+  },
+  aiConfidence: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true });
 

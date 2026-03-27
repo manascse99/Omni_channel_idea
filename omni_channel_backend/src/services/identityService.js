@@ -4,15 +4,16 @@ const User = require('../models/User');
  * Resolves a user's identity based on their channel identifier.
  * Automatically handles merging if a user connects a new channel.
  */
-async function resolveIdentity(channel, identifier) {
+async function resolveIdentity(channel, identifier, name = null) {
   let query = {};
+  const lowerIdentifier = identifier.toLowerCase();
+  
   if (channel === 'whatsapp') {
     query = { phone: identifier };
-  } else if (channel === 'email') {
-    query = { email: identifier };
+  } else if (channel === 'email' || channel === 'webchat') {
+    // Both email and webchat use email as primary ID
+    query = { email: lowerIdentifier };
   } else {
-    // For Webchat, identifier would be a session ID or similar, 
-    // but for now we focus on WA and Email.
     return { user: null, isNew: false };
   }
 
@@ -20,10 +21,14 @@ async function resolveIdentity(channel, identifier) {
     let user = await User.findOne(query);
 
     if (user) {
-      // User found. Update lastSeen and channel history.
       user.lastSeen = new Date();
       user.lastChannel = channel;
       
+      // Update name if it was null or just the email
+      if (name && (!user.name || user.name === 'Unknown User' || user.name === user.email)) {
+        user.name = name;
+      }
+
       if (!user.channelHistory.includes(channel)) {
         user.channelHistory.push(channel);
       }
@@ -32,29 +37,28 @@ async function resolveIdentity(channel, identifier) {
       return { user, isNew: false };
     }
 
-    // User not found, create a new one.
+    // Determine fallback name
+    const fallbackName = channel === 'email' ? lowerIdentifier.split('@')[0] : 'New User';
+
     const newUserObj = {
+      name: name || fallbackName,
       channelHistory: [channel],
       lastChannel: channel,
-      preferredChannel: channel
+      preferredChannel: channel,
+      firstInteractionAt: new Date()
     };
 
     if (channel === 'whatsapp') {
       newUserObj.phone = identifier;
-    } else if (channel === 'email') {
-      newUserObj.email = identifier;
+    } else {
+      newUserObj.email = lowerIdentifier;
     }
 
     user = await User.create(newUserObj);
     return { user, isNew: true };
     
   } catch (error) {
-    if (error.code === 11000) {
-      // Rare race condition where user was created between findOne and create.
-      console.warn("Duplicate key error during identity resolution. Retrying...");
-      return resolveIdentity(channel, identifier); 
-    }
-    console.error("Identity Resolution Error:", error);
+    if (error.code === 11000) return resolveIdentity(channel, identifier, name);
     throw error;
   }
 }

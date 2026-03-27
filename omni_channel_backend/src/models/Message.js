@@ -46,6 +46,18 @@ const messageSchema = new mongoose.Schema({
       type: String,
       default: null
     },
+    messageId: {
+      type: String,
+      default: null
+    },
+    isAiSuggestion: {
+      type: Boolean,
+      default: false
+    },
+    imapUid: {
+      type: String,
+      default: null
+    },
     agentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Agent',

@@ -1,84 +1,139 @@
 import React from 'react';
-import { User, AlertCircle, MessageSquare, ShieldAlert, Cpu, Smile, Meh, Frown, Compass, ArrowRight } from 'lucide-react';
+import { AlertCircle, ShieldAlert, Cpu, Smile, Meh, Frown, Clock, ArrowUpRight, Zap } from 'lucide-react';
 
 export default function MonitorCard({ data, onTakeOver }) {
-  const { name, status, waiting, intent, sentiment, confidence, avatar } = data;
+  const { name, status, waiting, intent, sentiment, confidence, avatar, channel } = data;
 
   const statusConfig = {
-    'AI HANDLING': { color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', icon: Cpu },
-    'NEEDS ATTENTION': { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', icon: AlertCircle },
-    'ESCALATED': { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', icon: ShieldAlert },
+    'AI HANDLING':     { accent: '#00CCA3', chipBg: '#F0FDF9', chipText: '#065F46', chipBorder: '#A7F3D0', Icon: Cpu        },
+    'NEEDS ATTENTION': { accent: '#F59E0B', chipBg: '#FFFBEB', chipText: '#92400E', chipBorder: '#FDE68A', Icon: AlertCircle },
+    'ESCALATED':       { accent: '#EF4444', chipBg: '#FEF2F2', chipText: '#991B1B', chipBorder: '#FECACA', Icon: ShieldAlert  },
   };
 
-  const sentimentIcon = {
-    'Positive': <Smile className="text-green-500" size={16} />,
-    'Neutral': <Meh className="text-amber-500" size={16} />,
-    'Urgent': <Frown className="text-red-500" size={16} />,
-    'Curated': <Compass className="text-blue-500" size={16} />,
-    'Curious': <Compass className="text-blue-500" size={16} />,
-    'Frustrated': <Frown className="text-red-500" size={16} />,
+  const sentimentConfig = {
+    positive:   { icon: <Smile size={13} />, bg: '#F0FDF4', text: '#166534', border: '#BBF7D0' },
+    neutral:    { icon: <Meh   size={13} />, bg: '#F9FAFB', text: '#374151', border: '#E5E7EB' },
+    negative:   { icon: <Frown size={13} />, bg: '#FEF2F2', text: '#991B1B', border: '#FECACA' },
+    Positive:   { icon: <Smile size={13} />, bg: '#F0FDF4', text: '#166534', border: '#BBF7D0' },
+    Neutral:    { icon: <Meh   size={13} />, bg: '#F9FAFB', text: '#374151', border: '#E5E7EB' },
+    Urgent:     { icon: <Frown size={13} />, bg: '#FEF2F2', text: '#991B1B', border: '#FECACA' },
+    Frustrated: { icon: <Frown size={13} />, bg: '#FEF2F2', text: '#991B1B', border: '#FECACA' },
   };
 
-  const config = statusConfig[status] || statusConfig['AI HANDLING'];
-  const StatusIcon = config.icon;
+  const cfg = statusConfig[status] || statusConfig['AI HANDLING'];
+  const StatusIcon = cfg.Icon;
+  const sent = sentimentConfig[sentiment] || sentimentConfig['Neutral'];
 
-  const confidenceColor = confidence > 80 ? 'bg-green-500' : confidence > 50 ? 'bg-amber-500' : 'bg-red-500';
+  const barColor = confidence > 80 ? '#00CCA3' : confidence > 50 ? '#F59E0B' : '#EF4444';
+
+  const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
-    <div className={`bg-white rounded-[24px] border-l-[6px] ${config.border.replace('border-', 'border-l-')} border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all flex flex-col relative`}>
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm">
-            <img src={avatar || `https://ui-avatars.com/api/?name=${name}&background=random`} alt={name} className="w-full h-full object-cover" />
+    <div
+      className="group relative bg-white rounded-[22px] overflow-hidden flex flex-col cursor-pointer"
+      style={{
+        border: '1.5px solid #F0F2F5',
+        boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 12px 32px rgba(0,0,0,0.10), 0 0 0 2px ${cfg.accent}22`; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 16px rgba(0,0,0,0.06)'; }}
+    >
+      {/* Top accent line */}
+      <div style={{ height: 3, background: cfg.accent, width: '100%' }} />
+
+      <div className="p-5 flex flex-col gap-4 flex-1">
+
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            <div
+              className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm text-white shrink-0 relative"
+              style={{ background: `${cfg.accent}22`, color: cfg.accent, border: `1.5px solid ${cfg.accent}44` }}
+            >
+              {avatar
+                ? <img src={avatar} alt={name} className="w-full h-full object-cover rounded-2xl" />
+                : <span style={{ color: cfg.accent }}>{initials}</span>
+              }
+              {/* Live pulse */}
+              <span
+                className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white"
+                style={{ background: cfg.accent }}
+              />
+            </div>
+
+            <div>
+              <h4 className="text-[14px] font-black text-[#0F2F55] leading-tight truncate max-w-[140px]">{name}</h4>
+              {/* Status chip */}
+              <div
+                className="inline-flex items-center gap-1 mt-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest border"
+                style={{ background: cfg.chipBg, color: cfg.chipText, borderColor: cfg.chipBorder }}
+              >
+                <StatusIcon size={9} />
+                {status === 'AI HANDLING' ? 'AI Handling' : status === 'NEEDS ATTENTION' ? 'Needs Attention' : 'Escalated'}
+              </div>
+            </div>
           </div>
-          <div>
-            <h4 className="text-[16px] font-bold text-primary flex items-center gap-1.5">
-              {name}
-              {status === 'AI HANDLING' && <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-[10px] text-white"><MessageSquare size={10} fill="white" /></div>}
-            </h4>
-            <div className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest ${config.color}`}>
-              <StatusIcon size={12} />
-              {status}
+
+          {/* Wait time */}
+          <div className="text-right shrink-0">
+            <div className="flex items-center gap-1 justify-end text-gray-400 mb-0.5">
+              <Clock size={9} />
+              <span className="text-[9px] font-black uppercase tracking-widest">Waiting</span>
+            </div>
+            <p className="text-[14px] font-black text-[#0F2F55]">{waiting}</p>
+          </div>
+        </div>
+
+        {/* Intent + Sentiment */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-[#F8FAFD] rounded-2xl px-3.5 py-2.5 border border-[#EFF2F7]">
+            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Intent</p>
+            <p className="text-[12px] font-bold text-[#0F2F55] capitalize truncate">{intent}</p>
+          </div>
+          <div
+            className="rounded-2xl px-3.5 py-2.5 border"
+            style={{ background: sent.bg, borderColor: sent.border }}
+          >
+            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Sentiment</p>
+            <div className="flex items-center gap-1.5">
+              <span style={{ color: sent.text }}>{sent.icon}</span>
+              <p className="text-[12px] font-bold capitalize truncate" style={{ color: sent.text }}>{sentiment}</p>
             </div>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Waiting</p>
-          <p className="text-[14px] font-black text-primary">{waiting}</p>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-[#F8FAFC] rounded-xl p-3 border border-gray-100">
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Intent</p>
-          <p className="text-[13px] font-bold text-primary truncate">{intent}</p>
-        </div>
-        <div className="bg-[#F8FAFC] rounded-xl p-3 border border-gray-100">
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Sentiment</p>
-          <div className="flex items-center gap-2">
-            {sentimentIcon[sentiment]}
-            <p className="text-[13px] font-bold text-primary">{sentiment}</p>
+        {/* Confidence bar */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">AI Confidence</p>
+            <span className="text-[11px] font-black" style={{ color: barColor }}>{confidence}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${confidence}%`, background: barColor }}
+            />
           </div>
         </div>
-      </div>
 
-      <div className="mt-auto">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-bold text-gray-500">{confidence}% Confidence</p>
-          {status === 'ESCALATED' && (
-             <button 
-               onClick={(e) => { e.stopPropagation(); onTakeOver(); }}
-               className="bg-[#C83E3E] hover:bg-[#A82E2E] text-white text-[10px] font-bold py-1.5 px-4 rounded-lg flex items-center gap-2 transition-colors uppercase tracking-widest"
-             >
-               Take Over
-             </button>
-          )}
-        </div>
-        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-          <div 
-            className={`h-full ${confidenceColor} transition-all duration-500`} 
-            style={{ width: `${confidence}%` }}
-          ></div>
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-[9px] font-black text-gray-400 bg-gray-100 rounded-lg px-2.5 py-1 uppercase tracking-widest">
+            {channel || 'Web'}
+          </span>
+
+          <button
+            onClick={(e) => { e.stopPropagation(); onTakeOver(); }}
+            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3.5 py-1.5 rounded-xl text-white transition-all"
+            style={{
+              background: status === 'ESCALATED' ? '#EF4444' : cfg.accent,
+              opacity: status === 'ESCALATED' ? 1 : undefined,
+            }}
+          >
+            {status === 'ESCALATED' ? 'Take Over' : 'Open Chat'} <ArrowUpRight size={11} />
+          </button>
         </div>
       </div>
     </div>

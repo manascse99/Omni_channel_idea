@@ -9,7 +9,7 @@ export default function RecentConversations() {
     api.get('/conversations?limit=3')
       .then(res => {
         const mapped = res.data.conversations.map(c => ({
-          name: c.userId?.name || c.userId?.phone || 'Unknown User',
+          name: c.userId?.name || c.userId?.email || c.userId?.phone || 'Unknown User',
           time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           msg: c.lastMessage || 'No message context',
           tags: [
@@ -40,6 +40,13 @@ export default function RecentConversations() {
     gray: 'bg-gray-400'
   };
 
+  const getAvatar = (name) => {
+    const initials = (name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    const colors = ['bg-red-500', 'bg-pink-500', 'bg-purple-500', 'bg-indigo-500', 'bg-blue-500', 'bg-teal-500', 'bg-green-500', 'bg-orange-500'];
+    const charCodeSum = (name || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return { initials, colorClass: colors[charCodeSum % colors.length] };
+  };
+
   return (
     <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex-[1.5]">
       <div className="flex items-center justify-between mb-6">
@@ -50,12 +57,14 @@ export default function RecentConversations() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {convos.map((c, i) => (
-          <div key={i} className="flex gap-4 p-4 rounded-[12px] border border-gray-100 hover:border-teal/30 hover:shadow-sm bg-white transition-all cursor-pointer group">
-            <div className="w-10 h-10 rounded-full bg-surface text-primary flex items-center justify-center shrink-0 font-bold border border-gray-200 shadow-inner group-hover:bg-teal group-hover:text-white transition-colors">
-              {c.name === 'Adani Realty Group' ? 'AR' : <User size={18} />}
-            </div>
-            <div className="flex-1 min-w-0">
+        {convos.map((c, i) => {
+          const avatar = getAvatar(c.name);
+          return (
+            <div key={i} className="flex gap-4 p-4 rounded-[12px] border border-gray-100 hover:border-teal/30 hover:shadow-sm bg-white transition-all cursor-pointer group">
+              <div className={`w-10 h-10 rounded-full ${avatar.colorClass} text-white flex items-center justify-center shrink-0 font-black text-sm border border-white shadow-sm group-hover:scale-105 transition-transform`}>
+                {avatar.initials}
+              </div>
+              <div className="flex-1 min-w-0">
               <div className="flex justify-between items-center mb-1.5">
                 <h4 className="text-[14px] font-bold text-gray-900 truncate pr-4">{c.name}</h4>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest shrink-0">{c.time}</span>
@@ -69,9 +78,10 @@ export default function RecentConversations() {
                   </span>
                 ))}
               </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -17,6 +17,8 @@ const io = new Server(server, {
   }
 });
 
+app.set('socketio', io);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -25,17 +27,25 @@ app.use(express.urlencoded({ extended: true }));
 // Connect to MongoDB
 connectDB();
 
+// Setup Sockets and get emitters
+const socketService = require('./src/sockets/socketManager')(io);
+
 // Setup routes
 app.use('/api', require('./src/routes/api'));
-app.use('/webhook', require('./src/routes/webhooks'));
+app.use('/webhook', (req, res, next) => {
+  req.socketService = socketService; // Attach to req for webhooks
+  next();
+}, require('./src/routes/webhooks'));
 
 // Temporary root route
 app.get('/', (req, res) => {
   res.send('OmniBank AI Backend is running.');
 });
 
-// Setup Sockets
-require('./src/sockets/socketManager')(io);
+// Initialize Mail Receiver (IMAP)
+const MailReceiver = require('./src/services/mailReceiver');
+const mailReceiver = new MailReceiver(io, socketService);
+mailReceiver.start();
 
 // Start Server
 const PORT = process.env.PORT || 5000;

@@ -10,6 +10,8 @@ import SecuritySection from '../../components/settings/SecuritySection';
 import BrandingSection from '../../components/settings/BrandingSection';
 import NotificationsSection from '../../components/settings/NotificationsSection';
 import IntegrationsSection from '../../components/settings/IntegrationsSection';
+import useSettingsStore from '../../store/settingsStore';
+import { useEffect } from 'react';
 
 const SECTIONS = [
   { id: 'ai', label: 'AI Configuration', icon: Bot, color: 'text-teal bg-teal/10' },
@@ -24,22 +26,55 @@ export default function SettingsPage() {
   const { tab } = useParams();
   const navigate = useNavigate();
   const active = tab || 'ai';
+  const { settings, fetchSettings, updateSettings, loading } = useSettingsStore();
+  const [localSettings, setLocalSettings] = useState(null);
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    if (settings && !localSettings) {
+      setLocalSettings(settings);
+    }
+  }, [settings, localSettings]);
+
+  const handleSave = async () => {
+    const success = await updateSettings(localSettings);
+    if (success) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    }
   };
+
+  const updateLocal = (section, updates) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      [section]: { ...prev[section], ...updates }
+    }));
+  };
+
+  if (loading && !localSettings) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50 font-bold text-gray-400">
+        Loading settings...
+      </div>
+    );
+  }
+
+  if (!localSettings) return null;
 
   const renderSection = () => {
     switch (active) {
-      case 'ai': return <AiConfigSection />;
-      case 'channels': return <ChannelConfigSection />;
+      case 'ai': return <AiConfigSection settings={localSettings.ai} onUpdate={(u) => updateLocal('ai', u)} />;
+      case 'channels': return <ChannelConfigSection settings={localSettings.channels} onUpdate={(u) => updateLocal('channels', u)} />;
+      // Other sections can be updated similarly as needed
       case 'security': return <SecuritySection />;
       case 'notifications': return <NotificationsSection />;
-      case 'branding': return <BrandingSection />;
+      case 'branding': return <BrandingSection settings={localSettings.branding} onUpdate={(u) => updateLocal('branding', u)} />;
       case 'integrations': return <IntegrationsSection />;
-      default: return <AiConfigSection />;
+      default: return null;
     }
   };
 
@@ -49,7 +84,7 @@ export default function SettingsPage() {
       <div className="w-[230px] shrink-0 border-r border-gray-100 bg-gray-50/60 flex flex-col p-4 overflow-y-auto">
         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.18em] mb-3 px-2">Configuration</p>
         <div className="space-y-1">
-          {SECTIONS.map(({ id, label, icon: Icon, color }) => (
+          {SECTIONS.map(({ id, label, color }) => (
             <button
               key={id}
               onClick={() => navigate(`/settings/${id}`)}

@@ -10,12 +10,22 @@ const CHANNELS = [
   { id: 'web', label: 'Web Chat Widget', icon: Globe, color: 'text-teal bg-teal/10', connected: true, msgs: '0', uptime: '100%' },
 ];
 
-export default function ChannelConfigSection() {
-  const [channels, setChannels] = useState(CHANNELS);
+export default function ChannelConfigSection({ settings, onUpdate }) {
   const [aiOnAll, setAiOnAll] = useState(true);
   const [routing, setRouting] = useState('round-robin');
 
-  const toggleChannel = (id) => setChannels(prev => prev.map(c => c.id === id ? { ...c, connected: !c.connected } : c));
+  const channels = CHANNELS.map(c => {
+    if (c.id === 'whatsapp') return { ...c, connected: settings.whatsapp?.enabled ?? true };
+    if (c.id === 'email') return { ...c, connected: settings.email?.enabled ?? true };
+    if (c.id === 'web') return { ...c, connected: settings.webchat?.enabled ?? true };
+    return c;
+  });
+
+  const toggleChannel = (id) => {
+    if (id === 'whatsapp') onUpdate({ whatsapp: { enabled: !settings.whatsapp?.enabled } });
+    if (id === 'email') onUpdate({ email: { enabled: !settings.email?.enabled } });
+    if (id === 'web') onUpdate({ webchat: { enabled: !settings.webchat?.enabled } });
+  };
 
   return (
     <div className="space-y-5">
@@ -66,7 +76,7 @@ export default function ChannelConfigSection() {
         </div>
 
         <div className="space-y-3">
-          {channels.map(({ id, label, icon: Icon, color, connected, msgs, uptime }) => (
+          {channels.map(({ id, label, color, connected, msgs, uptime }) => (
             <div key={id} className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${connected ? 'border-gray-100 bg-gray-50/50' : 'border-dashed border-gray-200'}`}>
               <div className="flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>

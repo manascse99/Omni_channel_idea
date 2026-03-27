@@ -1,21 +1,39 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../services/apiClient';
 import { io } from 'socket.io-client';
-import { CheckCircle2, AlertTriangle, UserPlus, MoreVertical, Send } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, UserPlus, MoreVertical, Send, ArrowLeft } from 'lucide-react';
 import MessageInput from './MessageInput';
 import AiSuggestionBox from './AiSuggestionBox';
+import { Link } from 'react-router-dom';
+import EscalationModal from './EscalationModal';
 
-export default function ChatWindow({ activeConversationId }) {
+export default function ChatWindow({ activeConversationId, onBack }) {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [suggestion, setSuggestion] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isEscalating, setIsEscalating] = useState(false);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const fetchSuggestion = useCallback((id) => {
+    api.get(`/conversations/${id}/ai-suggestion`)
+      .then(res => setSuggestion(res.data.suggestion || ''))
+      .catch(console.error);
+  }, []);
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
 
   useEffect(() => {
     if (!activeConversationId) return;
     
     setLoading(true);
+    setSuggestion('');
+
     // Fetch Conversation & Messages
     api.get(`/conversations/${activeConversationId}`)
       .then(res => {
@@ -30,9 +48,7 @@ export default function ChatWindow({ activeConversationId }) {
       });
 
     // Fetch AI Suggestion
-    api.get(`/conversations/${activeConversationId}/ai-suggestion`)
-      .then(res => setSuggestion(res.data.suggestion))
-      .catch(console.error);
+    fetchSuggestion(activeConversationId);
 
     // Setup Socket.io
     const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
@@ -41,26 +57,54 @@ export default function ChatWindow({ activeConversationId }) {
     socket.on('new_message', (data) => {
       setMessages(prev => [...prev, data.message]);
       scrollToBottom();
+      // Refresh AI suggestion when a new customer message arrives
+      if (data.message?.senderType === 'user') {
+        fetchSuggestion(activeConversationId);
+      }
     });
 
     return () => {
       socket.emit('leave_conversation', { conversationId: activeConversationId });
       socket.disconnect();
     };
-  }, [activeConversationId]);
-
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  };
+  }, [activeConversationId, fetchSuggestion]);
 
   const updateStatus = (newStatus) => {
+    if (newStatus === 'escalate') {
+      setIsEscalating(true);
+      return;
+    }
     api.post(`/conversations/${activeConversationId}/${newStatus}`)
       .then(() => {
         setConversation(prev => ({...prev, status: newStatus === 'resolve' ? 'resolved' : 'escalated'}));
       })
       .catch(console.error);
+  };
+
+  const handleEscalateConfirm = (targetAgentId) => {
+    api.post(`/conversations/${activeConversationId}/escalate`, { targetAgentId })
+      .then(res => {
+        setConversation(prev => ({ ...prev, ...res.data.conversation }));
+        setIsEscalating(false);
+      })
+      .catch(err => {
+        console.error('Escalation failed:', err);
+        setIsEscalating(false);
+      });
+  };
+
+  // Accept & Send: send the AI suggestion directly
+  const handleAcceptSuggestion = () => {
+    if (!suggestion || !activeConversationId) return;
+    inputRef.current?.sendMessage(suggestion);
+    setSuggestion('');
+  };
+
+  // Edit: populate the message input with the suggestion for editing
+  const handleEditSuggestion = () => {
+    if (!suggestion) return;
+    inputRef.current?.setText(suggestion);
+    setSuggestion('');
   };
 
   if (!activeConversationId) {
@@ -79,47 +123,82 @@ export default function ChatWindow({ activeConversationId }) {
     );
   }
 
-  const initials = conversation.userId?.name ? conversation.userId.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'US';
+  const customerName = conversation.userId?.name || conversation.userId?.email || 'Customer';
+  const initials = customerName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#F4F6F9] relative shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] z-10">
       {/* Chat Header */}
-      <div className="h-[76px] border-b border-gray-200 px-6 flex items-center justify-between shrink-0 bg-white">
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-full bg-[#E5F5EF] text-[#0F7A5E] flex items-center justify-center font-bold text-sm">
+      <div className="h-[80px] border-b border-gray-200 px-6 flex items-center justify-between shrink-0 bg-white shadow-sm z-30">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          {/* Back Button */}
+          <button 
+            onClick={onBack}
+            className="w-10 h-10 rounded-xl border border-gray-100 flex items-center justify-center text-gray-400 hover:text-primary hover:bg-gray-50 transition-all shadow-sm mr-1 shrink-0"
+            title="Back to Monitor"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
+          <div className="w-11 h-11 rounded-full bg-[#E5F5EF] text-[#0F7A5E] flex items-center justify-center font-black text-xs border-2 border-white shadow-sm shrink-0">
             {initials}
           </div>
-          <div>
-            <h2 className="text-[15px] font-bold text-primary flex items-center gap-2">
-              {conversation.userId?.name || conversation.userId?.phone || 'Unknown User'}
-              <span className={`w-2 h-2 rounded-full shadow-sm border border-white ${conversation.status === 'resolved' ? 'bg-gray-400' : 'bg-green-500'}`}></span>
-            </h2>
-            <p className="text-[11px] text-gray-500 font-bold mt-0.5">{conversation.userId?.email || conversation.userId?.phone}</p>
-          </div>
-          <div className="ml-4 bg-[#E2E8F0] text-primary border border-gray-300 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-            Intent: {conversation.intent || 'General'}
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3">
+              <h2 className="text-[15px] font-black text-gray-900 truncate">
+                {customerName}
+              </h2>
+              <div className="flex items-center gap-1.5">
+                {conversation.intent && (
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest rounded-md border border-blue-100/50">
+                    {conversation.intent.replace('_', ' ')}
+                  </span>
+                )}
+                {conversation.sentiment && (
+                  <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
+                    conversation.sentiment === 'positive' ? 'bg-green-50 text-green-600 border-green-100/50' :
+                    conversation.sentiment === 'negative' ? 'bg-red-50 text-red-600 border-red-100/50' :
+                    'bg-gray-50 text-gray-500 border-gray-100'
+                  }`}>
+                    {conversation.sentiment}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <p className="text-[11px] text-gray-400 font-bold truncate tracking-tight">
+                {conversation.userId?.email || conversation.userId?.phone}
+              </p>
+              <span className="w-1 h-1 rounded-full bg-gray-200"></span>
+              {conversation.userId?.channelHistory?.map(ch => (
+                <span key={ch} className="text-[9px] font-black text-teal uppercase tracking-widest">{ch}</span>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] uppercase tracking-wider font-bold rounded-lg flex items-center gap-1.5 transition-colors">
-            <UserPlus size={14} /> Assign
-          </button>
-          <button onClick={() => updateStatus('escalate')} className="px-4 py-2 bg-[#FEF2F2] hover:bg-[#FEE2E2] text-red-600 text-[11px] uppercase tracking-wider font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-red-100">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3 shrink-0 ml-4">
+          <Link to={`/customers/${activeConversationId}`} className="h-9 px-4 bg-white border border-gray-200 hover:border-gray-300 text-gray-600 text-[11px] uppercase tracking-wider font-black rounded-xl flex items-center gap-2 transition-all shadow-sm group">
+            <UserPlus size={14} className="text-gray-400 group-hover:text-teal" /> 
+            <span>Profile</span>
+          </Link>
+          <button onClick={() => updateStatus('escalate')} className="h-9 px-4 bg-[#FEF2F2] hover:bg-[#FEE2E2] text-red-600 text-[11px] uppercase tracking-wider font-black rounded-xl flex items-center gap-2 transition-all border border-red-100">
             <AlertTriangle size={14} /> Escalate
           </button>
-          <button onClick={() => updateStatus('resolve')} className="px-4 py-2 bg-teal hover:bg-[#00b395] text-white text-[11px] uppercase tracking-wider font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm shadow-teal/20">
+          <button onClick={() => updateStatus('resolve')} className="h-9 px-4 bg-teal hover:bg-[#00b395] text-white text-[11px] uppercase tracking-wider font-black rounded-xl flex items-center gap-2 transition-all shadow-md shadow-teal/20">
             <CheckCircle2 size={14} /> Resolve
           </button>
-          <button className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors ml-1 border border-transparent hover:border-gray-200">
+          <button className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50 transition-all ml-1 border border-transparent hover:border-gray-100">
             <MoreVertical size={18} />
           </button>
         </div>
       </div>
 
       {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto p-8 relative">
-        <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-48">
+      <div className="flex-1 overflow-y-auto p-8 relative scrollbar-hide">
+        <div className="flex flex-col gap-6 max-w-4xl mx-auto">
           
           <div className="text-center my-4">
              <span className="bg-gray-200 text-gray-500 text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full">Started {new Date(conversation.createdAt).toLocaleDateString()}</span>
@@ -128,16 +207,34 @@ export default function ChatWindow({ activeConversationId }) {
           {messages.map((msg, index) => {
             const isUser = msg.senderType === 'user';
             const isAI = msg.senderType === 'ai';
-            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            // Hide raw AI suggestion messages (they're shown in AiSuggestionBox instead)
+            if (isAI && msg.metadata?.isAiSuggestion) return null;
+            const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now';
 
             return (
               <div key={index} className={`flex items-start gap-4 ${!isUser ? 'flex-row-reverse' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border border-white shadow-sm ${
-                  isUser ? 'bg-[#E5F5EF] text-[#0F7A5E]' : isAI ? 'bg-teal text-white' : 'bg-[#15335E] text-white'
+                  isUser ? 'bg-[#E5F5EF] text-[#0F7A5E]' : isAI ? 'bg-teal text-white' : 'bg-primary text-white'
                 }`}>
-                  {isUser ? initials : isAI ? 'AI' : 'AG'}
+                  {isUser ? initials : isAI ? 'AI' : (msg.metadata?.agentId?.name ? msg.metadata.agentId.name[0].toUpperCase() : 'AG')}
                 </div>
-                <div className={`flex flex-col max-w-[70%] ${!isUser ? 'items-end' : 'items-start'}`}>
+                <div className={`flex flex-col max-w-[75%] ${!isUser ? 'items-end' : 'items-start'}`}>
+                  {/* Channel Badge & Agent Name */}
+                  <div className="flex items-center gap-2 mb-1.5 px-1">
+                    {!isUser && !isAI && msg.metadata?.agentId?.name && (
+                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">
+                        Agent: {msg.metadata.agentId.name}
+                      </span>
+                    )}
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                      msg.channel === 'email' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
+                      msg.channel === 'whatsapp' ? 'text-green-600 bg-green-50 border-green-100' :
+                      'text-purple-600 bg-purple-50 border-purple-100'
+                    }`}>
+                      via {msg.channel === 'email' ? 'Email' : msg.channel === 'whatsapp' ? 'WhatsApp' : 'Web Chat'}
+                    </span>
+                  </div>
+
                   <div className={`rounded-[20px] px-5 py-4 text-[14px] shadow-sm leading-relaxed ${
                     isUser ? 'bg-white border border-gray-200 rounded-tl-sm text-gray-800' : 'bg-primary text-white rounded-tr-sm shadow-md'
                   }`}>
@@ -149,14 +246,36 @@ export default function ChatWindow({ activeConversationId }) {
             );
           })}
           
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} className="h-4" />
         </div>
       </div>
 
-      <div className="absolute bottom-6 left-0 right-0 max-w-4xl mx-auto w-full px-8 pointer-events-auto z-20">
-        <AiSuggestionBox />
-        <MessageInput conversationId={activeConversationId} />
+      {/* Input Area - Stable sticky block */}
+      <div className="mt-auto bg-white border-t border-gray-100 p-6 z-20">
+        <div className="max-w-4xl mx-auto flex flex-col gap-4">
+          {suggestion && (
+            <AiSuggestionBox
+              name={customerName}
+              suggestion={suggestion}
+              onAccept={handleAcceptSuggestion}
+              onEdit={handleEditSuggestion}
+            />
+          )}
+          <MessageInput
+            ref={inputRef}
+            conversationId={activeConversationId}
+          />
+        </div>
       </div>
+
+      <EscalationModal 
+        isOpen={isEscalating}
+        onClose={() => setIsEscalating(false)}
+        onEscalate={handleEscalateConfirm}
+        teamId={conversation.assignedTeam || conversation.userId?.teamId}
+        conversationId={activeConversationId}
+      />
     </div>
   );
 }
+

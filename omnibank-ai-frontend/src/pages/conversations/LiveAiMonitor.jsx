@@ -9,17 +9,6 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
   const [filter, setFilter] = useState('All');
   const [monitors, setMonitors] = useState([]);
 
-  useEffect(() => {
-    fetchConversations();
-
-    // Listen for real-time new conversations
-    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
-    socket.on('new_message', () => fetchConversations());
-    socket.on('conversation_updated', () => fetchConversations());
-
-    return () => socket.disconnect();
-  }, []);
-
   const fetchConversations = () => {
     api.get('/conversations')
       .then(res => {
@@ -30,14 +19,25 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
           waiting: timeSince(c.updatedAt),
           intent: c.intent || 'General',
           sentiment: c.sentiment || 'Neutral',
-          confidence: c.status === 'ai-handling' ? 90 : c.status === 'escalated' ? 30 : 60,
+          confidence: c.aiConfidence || 0,
           avatar: null,
-          channel: c.lastChannel === 'whatsapp' ? 'Direct' : c.lastChannel === 'email' ? 'Channels' : 'AI-Assisted'
+          channel: c.lastChannel || 'Direct'
         }));
         setMonitors(mapped);
       })
       .catch(console.error);
   };
+
+  useEffect(() => {
+    fetchConversations();
+
+    // Listen for real-time new conversations
+    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
+    socket.on('new_message', () => fetchConversations());
+    socket.on('conversation_updated', () => fetchConversations());
+
+    return () => socket.disconnect();
+  }, []);
 
   const timeSince = (dateStr) => {
     const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);

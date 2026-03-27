@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema({
   },
   lastChannel: {
     type: String
+  },
+  firstInteractionAt: {
+    type: Date,
+    default: Date.now
   }
 }, { timestamps: true });
 

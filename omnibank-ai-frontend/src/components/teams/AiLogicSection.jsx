@@ -12,7 +12,7 @@ export default function AiLogicSection() {
         
         <div className="relative z-10 mt-12">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Mappings</p>
-          <p className="text-[42px] font-black text-white leading-none">242</p>
+          <p className="text-[42px] font-black text-white leading-none">0</p>
         </div>
 
         {/* Decorative elements */}
@@ -40,29 +40,29 @@ export default function AiLogicSection() {
              <p className="text-[12px] text-gray-500 font-medium">Intent classification success rate</p>
           </div>
           <div className="text-right">
-             <p className="text-[32px] font-black text-[#0F7A5E] leading-none mb-1">99.2%</p>
-             <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">+0.4% this week</p>
+             <p className="text-[32px] font-black text-[#0F7A5E] leading-none mb-1">0%</p>
+             <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">+0% this week</p>
           </div>
         </div>
 
         <div className="mt-6 mb-8">
            <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-teal w-[99.2%] rounded-full shadow-[0_0_10px_rgba(15,122,94,0.3)]"></div>
+              <div className="h-full bg-teal w-[0%] rounded-full shadow-[0_0_10px_rgba(15,122,94,0.3)]"></div>
            </div>
         </div>
 
         <div className="grid grid-cols-3 gap-8 pt-6 border-t border-gray-200/50">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Avg Latency</p>
-            <p className="text-[20px] font-black text-primary">140ms</p>
+            <p className="text-[20px] font-black text-primary">0ms</p>
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Conflicts</p>
-            <p className="text-[20px] font-black text-primary">0.02%</p>
+            <p className="text-[20px] font-black text-primary">0%</p>
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Last re-sync</p>
-            <p className="text-[20px] font-black text-primary">4m ago</p>
+            <p className="text-[20px] font-black text-primary">Just now</p>
           </div>
         </div>
       </div>

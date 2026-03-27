@@ -1,23 +1,32 @@
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 import api from '../../services/apiClient';
 import { Paperclip, Smile, Send } from 'lucide-react';
 
-export default function MessageInput({ conversationId }) {
+// forwardRef lets ChatWindow call sendMessage() and setText() imperatively
+const MessageInput = forwardRef(function MessageInput({ conversationId, onMessageSent }, ref) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
 
-  const handleSend = async () => {
-    if (!text.trim() || !conversationId || sending) return;
+  const handleSend = async (overrideText) => {
+    const content = (overrideText ?? text).trim();
+    if (!content || !conversationId || sending) return;
     setSending(true);
     try {
-      await api.post(`/conversations/${conversationId}/messages`, { content: text });
+      await api.post(`/conversations/${conversationId}/messages`, { content });
       setText('');
+      onMessageSent?.();
     } catch (err) {
       console.error('Failed to send message:', err);
     } finally {
       setSending(false);
     }
   };
+
+  // Expose setText and handleSend to parent via ref
+  useImperativeHandle(ref, () => ({
+    setText,
+    sendMessage: handleSend,
+  }));
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -43,7 +52,7 @@ export default function MessageInput({ conversationId }) {
         <Smile size={20} />
       </button>
       <button 
-        onClick={handleSend}
+        onClick={() => handleSend()}
         disabled={!text.trim() || sending}
         className="bg-primary hover:bg-[#15335E] text-white w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-md shrink-0 disabled:opacity-50"
       >
@@ -51,4 +60,6 @@ export default function MessageInput({ conversationId }) {
       </button>
     </div>
   );
-}
+});
+
+export default MessageInput;

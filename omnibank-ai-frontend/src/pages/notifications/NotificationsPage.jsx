@@ -26,7 +26,7 @@ export default function NotificationsPage() {
     api.get('/conversations')
       .then(res => {
         const convos = res.data.conversations || [];
-        const mapped = convos.map((c, i) => ({
+        const mapped = convos.map((c) => ({
           id: c._id,
           type: c.status === 'escalated' ? 'critical' : c.status === 'ai-handling' ? 'conversation' : 'team',
           title: c.status === 'escalated' ? 'Escalation Alert' : 'New Conversation',
@@ -35,7 +35,7 @@ export default function NotificationsPage() {
           unread: c.status !== 'resolved',
           icon: c.status === 'escalated' ? AlertCircle : MessageSquare,
           color: c.status === 'escalated' ? 'text-red-500 bg-red-50' : 'text-teal bg-teal/10',
-          link: '/conversations/all'
+          link: `/conversations/${c._id}`
         }));
         setNotifications(mapped);
       })
@@ -54,8 +54,16 @@ export default function NotificationsPage() {
     setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
   };
 
+  const markAsRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+  };
+
   const deleteNotification = (id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const clearAll = () => {
+    setNotifications([]);
   };
 
 
@@ -79,7 +87,10 @@ export default function NotificationsPage() {
           >
             <Check size={14} /> Mark all as read
           </button>
-          <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-[13px] font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10">
+          <button
+            onClick={clearAll}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-[13px] font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+          >
             <Trash2 size={14} /> Clear all
           </button>
         </div>
@@ -96,25 +107,25 @@ export default function NotificationsPage() {
                 { id: 'unread', label: 'Unread', icon: Bell, count: notifications.filter(n => n.unread).length },
                 { id: 'team', label: 'Team Mentions', icon: UserPlus, count: notifications.filter(n => n.type === 'team').length },
                 { id: 'system', label: 'System Alerts', icon: AlertCircle, count: notifications.filter(n => n.type === 'system' || n.type === 'critical').length },
-              ].map(tab => (
+              ].map((t) => (
                 <button 
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all ${
-                    activeTab === tab.id 
+                    activeTab === t.id 
                       ? 'bg-primary text-white shadow-xl shadow-primary/10' 
                       : 'text-gray-500 hover:bg-white hover:text-primary hover:shadow-sm border border-transparent hover:border-gray-100'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <tab.icon size={16} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
-                    <span className="text-[13px] font-bold">{tab.label}</span>
+                    <t.icon size={16} strokeWidth={activeTab === t.id ? 2.5 : 2} />
+                    <span className="text-[13px] font-bold">{t.label}</span>
                   </div>
-                  {tab.count > 0 && (
+                  {t.count > 0 && (
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
-                      activeTab === tab.id ? 'bg-teal/20 text-teal' : 'bg-gray-100 text-gray-500'
+                      activeTab === t.id ? 'bg-teal/20 text-teal' : 'bg-gray-100 text-gray-500'
                     }`}>
-                      {tab.count}
+                      {t.count}
                     </span>
                   )}
                 </button>
@@ -186,7 +197,10 @@ export default function NotificationsPage() {
                         View Detail <ExternalLink size={10} />
                       </button>
                       {n.unread && (
-                        <button className="px-5 py-2 rounded-xl text-[11px] font-black text-teal hover:bg-teal/5 transition-all">
+                        <button
+                          onClick={() => markAsRead(n.id)}
+                          className="px-5 py-2 rounded-xl text-[11px] font-black text-teal hover:bg-teal/5 transition-all"
+                        >
                           Dismiss
                         </button>
                       )}
@@ -194,11 +208,19 @@ export default function NotificationsPage() {
                   </div>
 
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
-                    <button className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors">
+                    <button
+                      onClick={() => deleteNotification(n.id)}
+                      className="w-10 h-10 rounded-xl hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-gray-400 transition-colors"
+                      title="Remove notification"
+                    >
                       <Trash2 size={16} />
                     </button>
-                    <button className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors">
-                      <MoreVertical size={16} />
+                    <button
+                      onClick={() => markAsRead(n.id)}
+                      className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors"
+                      title="Mark as read"
+                    >
+                      <Check size={16} />
                     </button>
                   </div>
                 </div>

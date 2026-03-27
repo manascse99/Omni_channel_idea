@@ -1,21 +1,16 @@
 import { useState } from 'react';
 import { Bot, Zap, Brain, Sliders, GitBranch, ToggleRight } from 'lucide-react';
 
-const intents = [
-  { intent: 'Loan Eligibility Inquiry', module: 'L_Module_01', active: true },
-  { intent: 'Balance Inquiry', module: 'B_Module_42', active: true },
-  { intent: 'Card Block / Freeze', module: 'C_Module_07', active: true },
-  { intent: 'Transaction Dispute', module: 'D_Module_15', active: false },
-  { intent: 'Account Opening', module: 'A_Module_03', active: true },
-];
 
-export default function AiConfigSection() {
-  const [autoReply, setAutoReply] = useState(true);
-  const [autoEscalate, setAutoEscalate] = useState(true);
-  const [sentiment, setSentiment] = useState(true);
-  const [threshold, setThreshold] = useState(85);
-  const [model, setModel] = useState('gemini-1.5-pro');
-  const [localIntents, setLocalIntents] = useState(intents);
+export default function AiConfigSection({ settings, onUpdate }) {
+  const { autoReply, autoEscalate, sentimentAnalysis, confidenceThreshold, model, intents: localIntents } = settings;
+
+  const setLocalIntents = (newIntents) => onUpdate({ intents: typeof newIntents === 'function' ? newIntents(localIntents) : newIntents });
+  const setAutoReply = (val) => onUpdate({ autoReply: val });
+  const setAutoEscalate = (val) => onUpdate({ autoEscalate: val });
+  const setSentiment = (val) => onUpdate({ sentimentAnalysis: val });
+  const setThreshold = (val) => onUpdate({ confidenceThreshold: val });
+  const setModel = (val) => onUpdate({ model: val });
 
   const Toggle = ({ val, onChange }) => (
     <button
@@ -71,7 +66,7 @@ export default function AiConfigSection() {
           {[
             { label: 'Global AI Auto-Reply', desc: 'AI responds automatically to common queries', val: autoReply, set: setAutoReply },
             { label: 'Auto-Escalate to Human', desc: 'Hand off when confidence drops below threshold', val: autoEscalate, set: setAutoEscalate },
-            { label: 'Sentiment Analysis', desc: 'Detect customer emotion in real time', val: sentiment, set: setSentiment },
+            { label: 'Sentiment Analysis', desc: 'Detect customer emotion in real time', val: sentimentAnalysis, set: setSentiment },
           ].map(({ label, desc, val, set }) => (
             <div key={label} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
               <div>
@@ -92,10 +87,10 @@ export default function AiConfigSection() {
             <h3 className="text-[15px] font-black text-primary">Confidence Threshold</h3>
             <p className="text-[11px] text-gray-400 font-medium">AI replies only when confidence exceeds this value</p>
           </div>
-          <div className="bg-primary text-teal text-[14px] font-black px-4 py-1.5 rounded-xl">{threshold}%</div>
+          <div className="bg-primary text-teal text-[14px] font-black px-4 py-1.5 rounded-xl">{confidenceThreshold}%</div>
         </div>
         <input
-          type="range" min="50" max="100" value={threshold}
+          type="range" min="50" max="100" value={confidenceThreshold}
           onChange={e => setThreshold(+e.target.value)}
           className="w-full accent-teal h-2 rounded-full"
         />

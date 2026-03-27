@@ -11,7 +11,7 @@ export default function SecuritySection() {
 
   // The 'user' state is typically fetched from an authentication store, not dummy data.
   // Assuming useAuthStore is a valid hook for fetching user data.
-  const user = useAuthStore(state => state.user);
+  const user = useAuthStore(state => state.user); // eslint-disable-line no-unused-vars
 
   // Removed dummy sessions data. In a real application, this would be fetched from an API.
   const sessions = []; 
