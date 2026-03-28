@@ -125,9 +125,10 @@ export default function ChatWindow({ activeConversationId, onBack }) {
               <div className="flex items-center gap-1.5 leading-none">
                 <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
                   conversation.lastChannel === 'email' ? 'bg-blue-50 text-blue-600 border-blue-100/50' : 
+                  conversation.lastChannel === 'telegram' ? 'bg-sky-50 text-sky-600 border-sky-100/50' :
                   'bg-teal/5 text-teal border-teal/10'
                 }`}>
-                  {conversation.lastChannel === 'email' ? 'Email Thread' : conversation.lastChannel}
+                  {conversation.lastChannel === 'email' ? 'Email Thread' : conversation.lastChannel === 'telegram' ? 'Telegram' : conversation.lastChannel}
                 </span>
                 <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
                   conversation.status === 'resolved' ? 'bg-green-50 text-green-600 border-green-100/50' :
@@ -199,9 +200,10 @@ export default function ChatWindow({ activeConversationId, onBack }) {
                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${
                       msg.channel === 'email' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
                       msg.channel === 'whatsapp' ? 'text-green-600 bg-green-50 border-green-100' :
+                      msg.channel === 'telegram' ? 'text-sky-600 bg-sky-50 border-sky-100' :
                       'text-purple-600 bg-purple-50 border-purple-100'
                     }`}>
-                      via {msg.channel === 'email' ? 'Email' : msg.channel === 'whatsapp' ? 'WhatsApp' : 'Web Chat'}
+                      via {msg.channel === 'email' ? 'Email' : msg.channel === 'whatsapp' ? 'WhatsApp' : msg.channel === 'telegram' ? 'Telegram' : 'Web Chat'}
                     </span>
                   </div>
 

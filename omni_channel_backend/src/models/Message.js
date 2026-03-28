@@ -13,7 +13,7 @@ const messageSchema = new mongoose.Schema({
   },
   channel: {
     type: String,
-    enum: ['whatsapp', 'email', 'webchat'],
+    enum: ['whatsapp', 'email', 'webchat', 'telegram'],
     required: true
   },
   senderType: {
@@ -46,7 +46,7 @@ const messageSchema = new mongoose.Schema({
       type: String,
       default: null
     },
-    messageId: {
+    telegramChatId: {
       type: String,
       default: null
     },

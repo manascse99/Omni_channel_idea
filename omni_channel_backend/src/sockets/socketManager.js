@@ -80,6 +80,23 @@ const socketManager = (io) => {
         aiSuggestion: aiContent,
         lastMessage: newMessage.content?.substring(0, 100) || ''
       });
+    },
+    // Simple helper for incoming messages without manual AI results (like Email/Webhooks)
+    emitNewMessage: (conversationId, message) => {
+      if (!conversationId || !message) return;
+      const idStr = conversationId.toString();
+      
+      io.to(idStr).emit('new_message', { 
+        conversationId: idStr, 
+        message, 
+        channel: message.channel 
+      });
+
+      // Also notify dashboard that a conversation was updated
+      io.emit('conversation_updated', { 
+        conversationId: idStr,
+        lastMessage: message.content?.substring(0, 100) || ''
+      });
     }
   };
 };

@@ -45,11 +45,13 @@ const STATUS_CONFIG = {
 
 export default function RecentConversations() {
   const [convos, setConvos] = useState([]);
+  const [activeChannelsCount, setActiveChannelsCount] = useState(0);
 
   useEffect(() => {
     api.get('/conversations?limit=3')
       .then(res => {
-        const mapped = res.data.conversations.map(c => ({
+        const conversations = res.data.conversations;
+        const mapped = conversations.map(c => ({
           name: c.userId?.name || c.userId?.email || c.userId?.phone || 'Unknown User',
           time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           msg: c.lastMessage || 'No message context',
@@ -57,6 +59,10 @@ export default function RecentConversations() {
           status: c.status || 'open'
         }));
         setConvos(mapped);
+        
+        // Calculate dynamic active channel count
+        const channels = new Set(conversations.map(c => c.lastChannel).filter(Boolean));
+        setActiveChannelsCount(channels.size || 1);
       })
       .catch(console.error);
   }, []);
@@ -84,7 +90,7 @@ export default function RecentConversations() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <p className="text-[12px] text-slate-500 font-medium">Monitoring 3 channels live</p>
+            <p className="text-[12px] text-slate-500 font-medium">Monitoring {activeChannelsCount} channel{activeChannelsCount !== 1 ? 's' : ''} live</p>
           </div>
         </div>
         <button className="group flex items-center gap-2 px-4 py-2 rounded-full hover:bg-slate-50 transition-all">

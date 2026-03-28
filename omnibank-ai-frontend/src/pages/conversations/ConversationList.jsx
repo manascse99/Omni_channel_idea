@@ -16,7 +16,7 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
           unread: c.unreadCount || 0,
           active: c._id === activeConversationId,
           tags: [
-            { label: (c.lastChannel || 'Unknown').toUpperCase(), color: c.lastChannel === 'whatsapp' ? 'green' : c.lastChannel === 'email' ? 'gray' : 'blue' }
+            { label: (c.lastChannel || 'Unknown').toUpperCase(), color: c.lastChannel === 'whatsapp' ? 'green' : c.lastChannel === 'email' ? 'gray' : c.lastChannel === 'telegram' ? 'blue' : 'blue' }
           ],
           type: c.status === 'ai-handling' ? 'AI-Assisted' : c.lastChannel === 'whatsapp' ? 'Direct' : 'Channels',
           userId: c.userId // Keep the raw userId for badges/metadata
@@ -72,6 +72,7 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
                  <div className="flex gap-1.5 grayscale opacity-70">
                    {c.userId?.channelHistory?.includes('whatsapp') && <span title="WhatsApp Connected" className="w-1.5 h-1.5 rounded-full bg-green-500"></span>}
                    {c.userId?.channelHistory?.includes('email') && <span title="Email Connected" className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>}
+                   {c.userId?.channelHistory?.includes('telegram') && <span title="Telegram Connected" className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>}
                    {c.userId?.channelHistory?.includes('webchat') && <span title="Web Chat Connected" className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>}
                  </div>
                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-auto">

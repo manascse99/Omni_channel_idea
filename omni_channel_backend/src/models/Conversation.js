@@ -36,7 +36,7 @@ const conversationSchema = new mongoose.Schema({
   },
   lastChannel: {
     type: String,
-    enum: ['whatsapp', 'email', 'webchat']
+    enum: ['whatsapp', 'email', 'webchat', 'telegram']
   },
   aiSummary: {
     type: String,

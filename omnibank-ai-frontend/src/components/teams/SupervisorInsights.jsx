@@ -4,15 +4,15 @@ import api from '../../services/apiClient';
 
 export default function SupervisorInsights() {
   const [teams, setTeams] = useState([]);
-  const [escalations, setEscalations] = useState(0);
+  const [overallStats, setOverallStats] = useState(null);
 
   useEffect(() => {
     api.get('/teams')
       .then(res => setTeams(res.data.teams))
       .catch(console.error);
     
-    api.get('/analytics/escalations')
-      .then(res => setEscalations(res.data.escalations.length))
+    api.get('/analytics/overview')
+      .then(res => setOverallStats(res.data))
       .catch(console.error);
   }, []);
 
@@ -22,9 +22,9 @@ export default function SupervisorInsights() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
           { label: 'Total Teams', val: teams.length, icon: Users, clr: 'bg-blue-50 text-blue-500' },
-          { label: 'Active Escalations', val: escalations, icon: AlertTriangle, clr: 'bg-red-50 text-red-500' },
-          { label: 'Avg SLA (Daily)', val: '94%', icon: Target, clr: 'bg-teal/10 text-teal' },
-          { label: 'AI Throughput', val: '88/hr', icon: Zap, clr: 'bg-amber-50 text-amber-500' },
+          { label: 'Active Escalations', val: overallStats?.totalMessages ? (teams.reduce((acc, t) => acc + t.active, 0)) : 0, icon: AlertTriangle, clr: 'bg-red-50 text-red-500' },
+          { label: 'Model Confidence', val: overallStats?.aiMetrics?.modelConfidence || '0%', icon: Target, clr: 'bg-teal/10 text-teal' },
+          { label: 'AI Resolution', val: overallStats?.aiResolvedRate || '0%', icon: Zap, clr: 'bg-amber-50 text-amber-500' },
         ].map((s, i) => (
           <div key={i} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${s.clr}`}>

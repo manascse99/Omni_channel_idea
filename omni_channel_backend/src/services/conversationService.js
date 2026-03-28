@@ -23,7 +23,15 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
       const existing = await Message.findOne({ 'metadata.imapUid': metadata.imapUid });
       if (existing) {
         console.log(`IMAP: Skipping already stored message [UID: ${metadata.imapUid}]`);
-        return { conversation: await Conversation.findById(existing.conversationId), newMessage: existing };
+        const conversation = await Conversation.findById(existing.conversationId);
+        const result = { conversation, newMessage: existing };
+        // 3. Emit Socket event for real-time dashboard update (including AI metrics)
+        if (req.socketService) {
+          req.socketService.emitAiResults(result.conversation, result.newMessage, {
+            content: result.aiResult?.reply || ''
+          });
+        }
+        return result;
       }
     }
 
@@ -71,7 +79,7 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
 
     console.log(`[CONVERSATION] AI metrics updated. Message processed for user ${user.email || user.phone}. Status: ${conversation.status}`);
 
-    return { conversation, newMessage };
+    return { conversation, newMessage, aiResult };
 
   } catch (error) {
     console.error("Conversation Service Error:", error);

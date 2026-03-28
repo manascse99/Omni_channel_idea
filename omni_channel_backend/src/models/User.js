@@ -11,17 +11,22 @@ const userSchema = new mongoose.Schema({
     sparse: true,
     unique: true
   },
+  telegramChatId: {
+    type: String,
+    sparse: true,
+    unique: true
+  },
   name: {
     type: String,
     default: null
   },
   channelHistory: [{
     type: String,
-    enum: ['whatsapp', 'email', 'webchat']
+    enum: ['whatsapp', 'email', 'webchat', 'telegram']
   }],
   preferredChannel: {
     type: String,
-    enum: ['whatsapp', 'email', 'webchat'],
+    enum: ['whatsapp', 'email', 'webchat', 'telegram'],
     default: 'whatsapp'
   },
   duplicateWarning: {

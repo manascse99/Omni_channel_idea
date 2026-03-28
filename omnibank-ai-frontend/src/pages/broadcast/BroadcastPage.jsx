@@ -45,7 +45,7 @@ export default function BroadcastPage() {
   const [error, setError] = useState(null);
   const [sendType, setSendType] = useState('now'); // 'now' | 'scheduled'
 
-  const [form, setForm] = useState({ subject: '', body: '', scheduledAt: '' });
+  const [form, setForm] = useState({ subject: '', body: '', scheduledAt: '', channel: 'email' });
 
   const fetchBroadcasts = () => {
     api.get('/broadcasts').then(res => {
@@ -71,13 +71,14 @@ export default function BroadcastPage() {
     setSuccess(null);
     try {
       const payload = {
-        subject: form.subject,
+        subject: form.channel === 'telegram' ? 'Telegram Broadcast' : form.subject,
         body: form.body,
+        channel: form.channel,
         scheduledAt: sendType === 'scheduled' ? form.scheduledAt : null,
       };
       await api.post('/broadcasts', payload);
-      setSuccess(sendType === 'scheduled' ? 'Broadcast scheduled successfully!' : 'Broadcast queued! Emails are being sent.');
-      setForm({ subject: '', body: '', scheduledAt: '' });
+      setSuccess(sendType === 'scheduled' ? 'Broadcast scheduled successfully!' : `Broadcast queued! ${form.channel === 'telegram' ? 'Telegram messages' : 'Emails'} are being sent.`);
+      setForm({ subject: '', body: '', scheduledAt: '', channel: 'email' });
       setSendType('now');
       fetchBroadcasts();
     } catch (err) {
@@ -124,7 +125,7 @@ export default function BroadcastPage() {
           </div>
           <div className="flex items-center gap-2 text-[11px] font-bold text-teal bg-teal/10 px-4 py-2 rounded-xl border border-teal/20">
             <Sparkles size={14} />
-            Email broadcast via SMTP
+            Multi-channel broadcasting via SMTP & Telegram
           </div>
         </div>
 
@@ -157,12 +158,42 @@ export default function BroadcastPage() {
           <div className="bg-white rounded-[16px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
             <div className="px-6 pt-6 pb-4 border-b border-gray-50">
               <h2 className="text-[16px] font-black text-primary flex items-center gap-2">
-                <Mail size={16} className="text-teal" /> New Broadcast
+                {form.channel === 'telegram' ? <Send size={16} className="text-[#0088CC]" /> : <Mail size={16} className="text-teal" />} 
+                New {form.channel === 'telegram' ? 'Telegram' : 'Email'} Broadcast
               </h2>
-              <p className="text-[12px] text-gray-400 mt-1">Send an email to all users in the database.</p>
+              <p className="text-[12px] text-gray-400 mt-1">
+                {form.channel === 'telegram' ? 'Send a mass message to all Telegram users.' : 'Send an email to all users in the database.'}
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-6 flex-1">
+              {/* Channel Selector */}
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Target Channel</label>
+                <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+                  {[
+                    { val: 'email', label: 'Email', icon: Mail, color: 'text-teal' },
+                    { val: 'telegram', label: 'Telegram', icon: Send, color: 'text-[#0088CC]' },
+                  ].map(opt => {
+                    const Icon = opt.icon;
+                    return (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, channel: opt.val }))}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[12px] font-black transition-all ${
+                          form.channel === opt.val
+                            ? 'bg-white text-primary shadow-sm'
+                            : 'text-gray-400 hover:text-primary'
+                        }`}
+                      >
+                        <Icon size={13} className={form.channel === opt.val ? opt.color : ''} /> {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Send Type Toggle */}
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Send Type</label>
@@ -190,18 +221,20 @@ export default function BroadcastPage() {
                 </div>
               </div>
 
-              {/* Subject */}
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Subject *</label>
-                <input
-                  type="text"
-                  value={form.subject}
-                  onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-                  placeholder="e.g. Important Platform Update"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/30 transition-all"
-                  required
-                />
-              </div>
+              {/* Subject (Only for Email) */}
+              {form.channel === 'email' && (
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Subject *</label>
+                  <input
+                    type="text"
+                    value={form.subject}
+                    onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
+                    placeholder="e.g. Important Platform Update"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/30 transition-all"
+                    required={form.channel === 'email'}
+                  />
+                </div>
+              )}
 
               {/* Scheduled At */}
               {sendType === 'scheduled' && (
@@ -247,7 +280,9 @@ export default function BroadcastPage() {
               <button
                 type="submit"
                 disabled={sending}
-                className="w-full bg-primary text-teal py-3 rounded-xl text-[13px] font-black flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm"
+                className={`w-full text-white py-3 rounded-xl text-[13px] font-black flex items-center justify-center gap-2 disabled:opacity-60 transition-all shadow-sm ${
+                  form.channel === 'telegram' ? 'bg-[#0088CC] hover:bg-[#0077B3]' : 'bg-primary hover:bg-primary/90'
+                }`}
               >
                 {sending ? <Loader2 size={16} className="animate-spin" /> : (sendType === 'scheduled' ? <Clock size={16} /> : <Send size={16} />)}
                 {sending ? 'Processing...' : sendType === 'scheduled' ? 'Schedule Broadcast' : 'Send Broadcast Now'}
@@ -288,6 +323,11 @@ export default function BroadcastPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-1.5">
                             <StatusBadge status={b.status} />
+                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${
+                              b.channel === 'telegram' ? 'bg-blue-50 text-[#0088CC]' : 'bg-teal/5 text-teal'
+                            }`}>
+                              {b.channel || 'email'}
+                            </span>
                           </div>
                           <p className="text-[14px] font-bold text-primary truncate">{b.subject}</p>
                           <p className="text-[12px] text-gray-400 truncate mt-0.5">{b.body.slice(0, 80)}…</p>

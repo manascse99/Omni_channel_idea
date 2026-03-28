@@ -76,7 +76,9 @@ router.post('/whatsapp', async (req, res) => {
         
         // 3. Emit Socket event for real-time dashboard update (AI-ready)
         if (req.socketService) {
-          req.socketService.emitAiResults(result.conversation, result.newMessage, result.aiMessage);
+          req.socketService.emitAiResults(result.conversation, result.newMessage, {
+            content: result.aiResult?.reply || ''
+          });
         }
       }
     } catch (error) {
@@ -116,6 +118,45 @@ router.post('/email', async (req, res) => {
     console.log(`Successfully processed Email webhook for user ${user._id}`);
   } catch (error) {
     console.error('Error processing Email webhook:', error);
+  }
+});
+
+/**
+ * 4. Telegram Incoming Messages (POST)
+ */
+router.post('/telegram', async (req, res) => {
+  // CRITICAL RULE: Always respond 200 immediately
+  res.sendStatus(200);
+
+  const body = req.body;
+  if (body.message && body.message.text) {
+    try {
+      const message = body.message;
+      const chatId = message.chat.id.toString();
+      const text = message.text;
+      const firstName = message.from.first_name || '';
+      const lastName = message.from.last_name || '';
+      const fullName = `${firstName} ${lastName}`.trim() || 'Telegram User';
+
+      // 1. Resolve Identity
+      const { user } = await identityService.resolveIdentity('telegram', chatId, fullName);
+
+      // 2. Process Message + Run AI Pipeline
+      const result = await conversationService.processIncomingMessage(user, 'telegram', text, {
+        telegramChatId: chatId
+      });
+
+      console.log(`Successfully processed Telegram message for user ${user._id}`);
+
+      // 3. Emit Socket event for real-time dashboard update
+      if (req.socketService) {
+        req.socketService.emitAiResults(result.conversation, result.newMessage, {
+          content: result.aiResult?.reply || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error processing Telegram webhook:', error);
+    }
   }
 });
 

@@ -69,25 +69,6 @@ export default function ActivityFeed() {
         )}
       </div>
       
-      <div className="mt-8 pt-8 border-t border-gray-50">
-        <div className="bg-gradient-to-br from-primary to-[#2A3F6A] rounded-[20px] p-6 flex flex-col relative overflow-hidden group/footer">
-          {/* Animated Glow Component */}
-          <div className="absolute -top-10 -right-10 w-24 h-24 bg-teal/20 blur-[40px] rounded-full group-hover/footer:scale-150 transition-transform duration-1000"></div>
-          
-          <div className="flex items-center gap-2 mb-2">
-             <TrendingUp size={14} className="text-teal" />
-             <p className="text-[10px] uppercase font-black text-teal tracking-[0.2em]">Predictive Analytics</p>
-          </div>
-          <p className="text-[13px] font-bold text-white/90 leading-snug">
-             Omni AI is forecasting a <span className="text-teal">12% volume surge</span> in manual queries next Tuesday.
-          </p>
-          
-          <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-white/40">
-             <Zap size={10} />
-             Live Processing Active
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -45,7 +45,7 @@ export default function SentimentAnalysis() {
               cursor={{ fill: 'transparent' }}
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
             />
-            <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+            <Bar dataKey="value" radius={[6, 6, 0, 0]}>
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[entry.name] || '#94a3b8'} />
               ))}

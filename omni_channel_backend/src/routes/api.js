@@ -10,6 +10,7 @@ const User = require('../models/User');
 const emailService = require('../services/emailService');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 require('dotenv').config();
 
 const transporter = emailService.transporter;
@@ -315,6 +316,22 @@ router.post('/conversations/:id/messages', async (req, res) => {
       }
     }
 
+    // Handle Telegram Delivery
+    if (conversation.lastChannel === 'telegram' && conversation.userId?.telegramChatId) {
+      const chatId = conversation.userId.telegramChatId;
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      
+      console.log(`[TELEGRAM] Agent replying to chatId: ${chatId}`);
+      try {
+        await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          chat_id: chatId,
+          text: content
+        });
+      } catch (tgErr) {
+        console.error('[TELEGRAM] Agent reply failed:', tgErr.response?.data || tgErr.message);
+      }
+    }
+
     conversation.status = 'open';
     conversation.lastMessage = content.substring(0, 50);
     conversation.updatedAt = new Date();
@@ -498,7 +515,18 @@ router.get('/analytics/overview', async (req, res) => {
     const sentimentSum = conversations.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0);
     const avgSentiment = conversations.length > 0 ? (sentimentSum / conversations.length).toFixed(1) : "0.0";
     
-    const sentimentTrend = totalConvos > 5 ? '+5.4%' : '+0.0%';
+    // Calculate Sentiment Trend (Last 7 days vs previous 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    
+    const recentConvos = await Conversation.find({ updatedAt: { $gte: sevenDaysAgo } });
+    const olderConvos = await Conversation.find({ updatedAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo } });
+    
+    const recentScore = recentConvos.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0) / (recentConvos.length || 1);
+    const olderScore = olderConvos.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0) / (olderConvos.length || 1);
+    
+    const diff = recentScore - olderScore;
+    const sentimentTrend = diff >= 0 ? `+${((diff/5)*100).toFixed(1)}%` : `${((diff/5)*100).toFixed(1)}%`;
 
     // Top Intent
     const intentCounts = {};
@@ -517,8 +545,13 @@ router.get('/analytics/overview', async (req, res) => {
     const avgConfidenceResult = await Conversation.aggregate([
       { $group: { _id: null, avgConf: { $avg: "$aiConfidence" } } }
     ]);
-    const modelConfidenceNum = avgConfidenceResult.length > 0 ? avgConfidenceResult[0].avgConf : 87.5;
+    const modelConfidenceNum = avgConfidenceResult.length > 0 ? avgConfidenceResult[0].avgConf : 0;
     const modelConfidence = `${modelConfidenceNum.toFixed(1)}%`;
+
+    // Messages per second (Last 24h)
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const msgsLast24h = await Message.countDocuments({ timestamp: { $gte: last24h } });
+    const avgMessagesPerSec = (msgsLast24h / 86400).toFixed(3);
 
     res.json({
       totalMessages,
@@ -532,9 +565,9 @@ router.get('/analytics/overview', async (req, res) => {
       },
       aiMetrics: {
         modelConfidence,
-        intentAccuracy: "92%",
+        intentAccuracy: modelConfidence, // Using confidence as a proxy for accuracy since we don't have human validation data yet
         autoResolveRate: `${aiResolvedRate}%`,
-        avgMessagesPerSec: "0.45"
+        avgMessagesPerSec
       }
     });
   } catch (err) {
@@ -574,11 +607,12 @@ router.get('/analytics/charts', async (req, res) => {
         { $group: { _id: "$lastChannel", count: { $sum: 1 } } }
       ]);
 
-      const dayObj = { name: dayName, WhatsApp: 0, Email: 0, WebChat: 0 };
+      const dayObj = { name: dayName, WhatsApp: 0, Email: 0, WebChat: 0, Telegram: 0 };
       counts.forEach(c => {
         if (c._id === 'whatsapp') dayObj.WhatsApp = c.count;
         if (c._id === 'email') dayObj.Email = c.count;
         if (c._id === 'webchat') dayObj.WebChat = c.count;
+        if (c._id === 'telegram') dayObj.Telegram = c.count;
       });
       volumeData.push(dayObj);
     }
@@ -586,7 +620,7 @@ router.get('/analytics/charts', async (req, res) => {
     res.json({
       channels: channelData.map(d => ({ name: d._id || 'Unknown', value: d.count })),
       intents: intentData.map(d => ({ name: d._id || 'General', value: d.count })),
-      sentiments: sentimentData.map(d => ({ name: d._id || 'Neutral', count: d.count })),
+      sentiments: sentimentData.map(d => ({ name: d._id || 'Neutral', value: d.count })),
       volume: volumeData
     });
   } catch (err) {
@@ -696,34 +730,48 @@ const Broadcast = require('../models/Broadcast');
 // Helper: send a single broadcast
 async function executeBroadcast(broadcast) {
   try {
-    const users = await User.find({}, 'email name').lean();
-    const validUsers = users.filter(u => u.email);
+    let users = [];
+    if (broadcast.channel === 'telegram') {
+      users = await User.find({ telegramChatId: { $exists: true, $ne: null } }, 'telegramChatId name').lean();
+    } else {
+      users = await User.find({ email: { $exists: true, $ne: null } }, 'email name').lean();
+    }
 
     await Broadcast.findByIdAndUpdate(broadcast._id, {
       status: 'sending',
-      totalRecipients: validUsers.length,
+      totalRecipients: users.length,
     });
 
     let sentCount = 0;
     let failedCount = 0;
 
-    for (const user of validUsers) {
+    for (const user of users) {
       try {
-        await transporter.sendMail({
-          from: `"OMNI Platform" <${process.env.GMAIL_USER}>`,
-          to: user.email,
-          subject: broadcast.subject,
-          html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
-              <h2 style="color: #1A2B4A; margin-bottom: 16px;">${broadcast.subject}</h2>
-              <div style="color: #374151; line-height: 1.6; white-space: pre-line;">${broadcast.body}</div>
-              <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;" />
-              <p style="color: #9CA3AF; font-size: 12px; text-align: center;">This message was sent via OMNI Platform.</p>
-            </div>
-          `,
-        });
+        if (broadcast.channel === 'telegram') {
+          // Send via Telegram Bot API
+          await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            chat_id: user.telegramChatId,
+            text: broadcast.body
+          });
+        } else {
+          // Send via SMTP
+          await transporter.sendMail({
+            from: `"OMNI Platform" <${process.env.GMAIL_USER}>`,
+            to: user.email,
+            subject: broadcast.subject,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
+                <h2 style="color: #1A2B4A; margin-bottom: 16px;">${broadcast.subject}</h2>
+                <div style="color: #374151; line-height: 1.6; white-space: pre-line;">${broadcast.body}</div>
+                <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;" />
+                <p style="color: #9CA3AF; font-size: 12px; text-align: center;">This message was sent via OMNI Platform.</p>
+              </div>
+            `,
+          });
+        }
         sentCount++;
       } catch (e) {
+        console.error(`Broadcast failed for user ${user._id}:`, e.message);
         failedCount++;
       }
     }
@@ -735,6 +783,7 @@ async function executeBroadcast(broadcast) {
       sentAt: new Date(),
     });
   } catch (err) {
+    console.error('Execute Broadcast Error:', err);
     await Broadcast.findByIdAndUpdate(broadcast._id, {
       status: 'failed',
       error: err.message,
@@ -759,15 +808,20 @@ setInterval(async () => {
 
 // POST /broadcasts — create immediate or scheduled broadcast
 router.post('/broadcasts', authenticateAgent, async (req, res) => {
-  const { subject, body, scheduledAt } = req.body;
-  if (!subject || !body) {
-    return res.status(400).json({ error: 'Subject and body are required.' });
+  const { subject, body, scheduledAt, channel } = req.body;
+  if (!body) {
+    return res.status(400).json({ error: 'Message body is required.' });
   }
+  if (channel === 'email' && !subject) {
+    return res.status(400).json({ error: 'Subject is required for Email broadcasts.' });
+  }
+
   try {
     const isScheduled = scheduledAt && new Date(scheduledAt) > new Date();
     const broadcast = await Broadcast.create({
-      subject,
+      subject: subject || 'No Subject',
       body,
+      channel: channel || 'email',
       scheduledAt: isScheduled ? new Date(scheduledAt) : null,
       status: isScheduled ? 'scheduled' : 'queued',
       createdBy: req.agentId,

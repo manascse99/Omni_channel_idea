@@ -8,6 +8,13 @@ class MailReceiver {
     this.io = io;
     this.socketService = socketService;
     this.processedUids = new Set(); // Session-level deduplication
+    this.blacklist = [
+      'facebookmail.com',
+      'linkedin.com',
+      'twitter.com',
+      'noreply',
+      'notifications'
+    ];
     this.config = {
       imap: {
         user: process.env.GMAIL_USER,
@@ -40,6 +47,13 @@ class MailReceiver {
 
       await connection.openBox('INBOX');
       console.log('IMAP: Inbox Opened. Polling for unseen mail...');
+
+      // Handle connection errors (prevents server crash on ECONNRESET)
+      connection.on('error', (err) => {
+        console.error('IMAP: Connection Error detected:', err.message);
+        // The interval or next fetch will notice the connection is dead
+        this.connection = null;
+      });
 
       // Initial check
       await this.fetchUnseen();
@@ -86,6 +100,13 @@ class MailReceiver {
 
           // Loop prevention: Ignore emails from the system's own email
           if (!from || from.toLowerCase() === process.env.GMAIL_USER.toLowerCase()) continue;
+
+          // Blacklist Filter: Ignore notifications from social media or automated bots
+          const isBlacklisted = this.blacklist.some(domain => from.toLowerCase().includes(domain));
+          if (isBlacklisted) {
+            console.log(`IMAP: Skipping blacklisted sender: ${from}`);
+            continue;
+          }
 
           const senderName = parsed.from?.value[0]?.name || from.split('@')[0];
           const subject = parsed.subject || 'No Subject';

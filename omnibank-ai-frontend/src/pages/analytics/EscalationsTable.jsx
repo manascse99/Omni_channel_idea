@@ -8,7 +8,8 @@ export default function EscalationsTable() {
   useEffect(() => {
     api.get('/analytics/escalations')
       .then(res => {
-        const mapped = res.data.escalations.map(esc => ({
+        const escalations = res.data.escalations || [];
+        const mapped = escalations.map(esc => ({
           id: esc._id,
           customer: esc.userId?.name || 'Unknown Customer',
           reason: esc.intent || 'High Sensitivity Query',
