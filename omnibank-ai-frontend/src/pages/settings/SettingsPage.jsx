@@ -84,7 +84,7 @@ export default function SettingsPage() {
       <div className="w-[230px] shrink-0 border-r border-gray-100 bg-gray-50/60 flex flex-col p-4 overflow-y-auto">
         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.18em] mb-3 px-2">Configuration</p>
         <div className="space-y-1">
-          {SECTIONS.map(({ id, label, color }) => (
+          {SECTIONS.map(({ id, label, color, icon }) => (
             <button
               key={id}
               onClick={() => navigate(`/settings/${id}`)}
@@ -95,7 +95,6 @@ export default function SettingsPage() {
               }`}
             >
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${active === id ? color : 'bg-gray-100 text-gray-400'}`}>
-                {/* Fixed: changed Icon to icon */}
                 {(() => {
                   const SectionIcon = icon;
                   return <SectionIcon size={14} />;

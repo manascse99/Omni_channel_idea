@@ -104,6 +104,12 @@ router.post('/auth/verify-otp', async (req, res) => {
         return res.status(400).json({ error: 'Name is required for first-time registration' });
       }
 
+      // Security Passkey Check for New Agents
+      const { passkey } = req.body;
+      if (passkey !== '123456') {
+        return res.status(403).json({ error: 'Invalid security passkey. Registration denied.' });
+      }
+
       // Find a default team (e.g., Customer Support)
       const defaultTeam = await Team.findOne({ name: 'Customer Support' });
 

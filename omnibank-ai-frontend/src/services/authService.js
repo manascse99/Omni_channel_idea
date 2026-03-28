@@ -6,8 +6,8 @@ const authService = {
     return response.data; // { success, message, isNewUser }
   },
 
-  async verifyOtp(email, otp, name = null) {
-    const response = await api.post('/auth/verify-otp', { email, otp, name });
+  async verifyOtp(email, otp, name = null, passkey = null) {
+    const response = await api.post('/auth/verify-otp', { email, otp, name, passkey });
     return response.data;
   },
 

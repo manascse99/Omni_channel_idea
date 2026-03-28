@@ -12,6 +12,7 @@ export default function SignupPage() {
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [passkey, setPasskey] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState(1); // 1: Registration Details, 2: OTP Verification
   const [loading, setLoading] = useState(false);
@@ -51,13 +52,13 @@ export default function SignupPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await authService.verifyOtp(email, otp, name);
+      const data = await authService.verifyOtp(email, otp, name, passkey);
       if (data.success) {
         setAuth(data.agent, data.token);
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid OTP. Please try again.');
+      setError(err.response?.data?.error || 'Invalid OTP or Passkey. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -123,6 +124,22 @@ export default function SignupPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@omnibank.ai"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal/50 focus:bg-white/10 transition-all font-medium"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Security Passkey</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal transition-colors">
+                      <Globe size={18} />
+                    </div>
+                    <input 
+                      type="password"
+                      required
+                      value={passkey}
+                      onChange={(e) => setPasskey(e.target.value)}
+                      placeholder="••••••"
                       className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-teal/50 focus:bg-white/10 transition-all font-medium"
                     />
                   </div>

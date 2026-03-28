@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/apiClient';
+import { 
+  CheckCircle2, MessageSquare, AlertTriangle, Clock, 
+  ChevronRight, Zap, TrendingUp, Activity
+} from 'lucide-react';
+
+const TYPE_CONFIG = {
+  success: { icon: CheckCircle2, color: 'text-teal', bg: 'bg-teal/10', border: 'border-teal/20' },
+  alert:   { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
+  default: { icon: MessageSquare, color: 'text-slate-400', bg: 'bg-slate-50', border: 'border-slate-100' },
+};
 
 export default function ActivityFeed() {
   const [activities, setActivities] = useState([]);
@@ -11,33 +21,71 @@ export default function ActivityFeed() {
   }, []);
 
   return (
-    <div className="bg-white rounded-[16px] p-8 shadow-md border border-gray-100 flex-1 flex flex-col hover:shadow-lg transition-all">
-      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-6">Activity Feed</h3>
-      
-      <div className="flex flex-col gap-6 relative flex-1">
-        {/* Vertical Line */}
-        <div className="absolute left-[5px] top-2 bottom-2 w-0.5 bg-gray-100"></div>
-        
-        {activities.map((item, idx) => (
-          <div key={idx} className="flex gap-4 relative z-10">
-            <div className={`w-3 h-3 rounded-full mt-1.5 shrink-0 ring-4 ring-white ${
-              item.type === 'success' ? 'bg-teal' : item.type === 'alert' ? 'bg-amber-500' : 'bg-gray-300'
-            }`}></div>
-            <div>
-              <p className="text-sm font-bold text-gray-800 mb-0.5">{item.title}</p>
-              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider inline-block bg-gray-50 px-2 py-0.5 rounded-sm">{item.time}</p>
-            </div>
-          </div>
-        ))}
+    <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 flex-1 flex flex-col hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-500 group">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+           <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary">
+              <Activity size={16} />
+           </div>
+           <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Activity Feed</h3>
+        </div>
+        <button className="text-[10px] font-bold text-teal hover:underline flex items-center gap-1 group/btn">
+           View Log <ChevronRight size={12} className="group-hover/btn:translate-x-0.5 transition-transform" />
+        </button>
       </div>
       
-      <div className="mt-6 pt-6 border-t border-gray-100">
-        <div className="bg-primary rounded-xl p-5 flex flex-col relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-10">
-            <svg width="60" height="60" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      <div className="flex flex-col gap-7 relative flex-1">
+        {/* Sophisticated Gradient Timeline Line */}
+        <div className="absolute left-[17px] top-2 bottom-2 w-[1px] bg-gradient-to-b from-teal/40 via-gray-100 to-transparent"></div>
+        
+        {activities.map((item, idx) => {
+          const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.default;
+          const Icon = cfg.icon;
+          
+          return (
+            <div key={idx} className="flex gap-5 relative z-10 group/item cursor-default">
+              <div className={`w-9 h-9 rounded-xl ${cfg.bg} border ${cfg.border} flex items-center justify-center shrink-0 transition-all duration-300 group-hover/item:scale-110 group-hover/item:shadow-lg`}>
+                <Icon size={16} className={cfg.color} />
+              </div>
+              <div className="flex-1 pt-1">
+                <p className="text-[13px] font-black text-primary leading-tight group-hover/item:text-teal transition-colors">{item.title}</p>
+                <div className="flex items-center gap-3 mt-1.5">
+                   <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <Clock size={10} /> {item.time}
+                   </div>
+                   <div className="h-1 w-1 rounded-full bg-gray-200"></div>
+                   <span className="text-[9px] font-black text-teal bg-teal/5 px-2 py-0.5 rounded-full uppercase tracking-tighter">System Event</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {activities.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-10 opacity-20">
+             <Activity size={40} className="mb-3" />
+             <p className="text-xs font-bold uppercase tracking-widest">No Recent Activity</p>
           </div>
-          <p className="text-[10px] uppercase font-bold text-teal tracking-widest mb-1">Predictive Analytics</p>
-          <p className="text-sm font-bold text-white tracking-wide">AI is analyzing patterns for next week.</p>
+        )}
+      </div>
+      
+      <div className="mt-8 pt-8 border-t border-gray-50">
+        <div className="bg-gradient-to-br from-primary to-[#2A3F6A] rounded-[20px] p-6 flex flex-col relative overflow-hidden group/footer">
+          {/* Animated Glow Component */}
+          <div className="absolute -top-10 -right-10 w-24 h-24 bg-teal/20 blur-[40px] rounded-full group-hover/footer:scale-150 transition-transform duration-1000"></div>
+          
+          <div className="flex items-center gap-2 mb-2">
+             <TrendingUp size={14} className="text-teal" />
+             <p className="text-[10px] uppercase font-black text-teal tracking-[0.2em]">Predictive Analytics</p>
+          </div>
+          <p className="text-[13px] font-bold text-white/90 leading-snug">
+             Omni AI is forecasting a <span className="text-teal">12% volume surge</span> in manual queries next Tuesday.
+          </p>
+          
+          <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-white/40">
+             <Zap size={10} />
+             Live Processing Active
+          </div>
         </div>
       </div>
     </div>
