@@ -74,6 +74,9 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
     if (conversation.status === 'resolved' || conversation.status === 'ai-handling') {
       conversation.status = 'open';
     }
+    
+    // Reset notification state for persistence
+    conversation.isRead = false;
 
     await conversation.save();
 

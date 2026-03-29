@@ -271,6 +271,27 @@ router.get('/conversations/:id', async (req, res) => {
   }
 });
 
+// Update single conversation as read
+router.patch('/conversations/:id/read', authenticateAgent, async (req, res) => {
+  try {
+    const conversation = await Conversation.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true });
+    if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+    res.json({ success: true, isRead: conversation.isRead });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark all current conversations as read
+router.post('/conversations/read-all', authenticateAgent, async (req, res) => {
+  try {
+    await Conversation.updateMany({ isRead: false }, { isRead: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/conversations/:id/messages', async (req, res) => {
   try {
     const conversation = await Conversation.findById(req.params.id).populate('userId');

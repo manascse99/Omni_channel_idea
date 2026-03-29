@@ -32,7 +32,8 @@ export default function NotificationsPage() {
           title: c.status === 'escalated' ? 'Escalation Alert' : 'New Conversation',
           desc: `Customer ${c.userId?.name || c.userId?.phone || 'Unknown'} reached out via ${c.lastChannel || 'unknown channel'}. ${c.lastMessage ? '"' + c.lastMessage + '"' : ''}`,
           time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          unread: c.status !== 'resolved',
+          unread: !c.isRead,
+          status: c.status,
           icon: c.status === 'escalated' ? AlertCircle : MessageSquare,
           color: c.status === 'escalated' ? 'text-red-500 bg-red-50' : 'text-teal bg-teal/10',
           link: `/conversations/${c._id}`
@@ -50,12 +51,22 @@ export default function NotificationsPage() {
     return true;
   });
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+  const markAllRead = async () => {
+    try {
+      await api.post('/conversations/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    } catch (err) {
+      console.error('Failed to mark all as read:', err);
+    }
   };
 
-  const markAsRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+  const markAsRead = async (id) => {
+    try {
+      await api.patch(`/conversations/${id}/read`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+    } catch (err) {
+      console.error('Failed to mark as read:', err);
+    }
   };
 
   const deleteNotification = (id) => {

@@ -28,6 +28,7 @@ export default function Header() {
   const { user, logout } = useAuthStore();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   const basePath = '/' + location.pathname.split('/')[1];
   const tabs = PAGE_TABS[basePath] || [];
@@ -36,6 +37,19 @@ export default function Header() {
   const activeTab = tabs.find(t => 
     t.toLowerCase().replace(' ', '-') === tab?.toLowerCase()
   ) || tabs[0];
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Cmd+K or Ctrl+K
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -70,6 +84,7 @@ export default function Header() {
             <Search size={16} />
           </div>
           <input 
+            ref={searchInputRef}
             type="text" 
             placeholder="Search conversations, agents, or settings..." 
             className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl pl-11 pr-16 py-2.5 text-[13px] outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
