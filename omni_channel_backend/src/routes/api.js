@@ -7,6 +7,7 @@ const OtpToken = require('../models/OtpToken');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const emailService = require('../services/emailService');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
@@ -353,19 +354,38 @@ router.post('/conversations/:id/messages', async (req, res) => {
       }
     }
 
+    // Handle Discord Delivery
+    if (conversation.lastChannel === 'discord' && conversation.userId?.discordUserId) {
+      try {
+        // Fetch latest discord message for channelId
+        const lastDiscordMsg = await Message.findOne({ 
+          conversationId: conversation._id, 
+          channel: 'discord',
+          senderType: 'user'
+        }).sort({ timestamp: -1 });
+
+        if (lastDiscordMsg && lastDiscordMsg.metadata?.channelId) {
+          const discordService = req.app.get('discordService');
+          if (discordService) {
+            console.log(`[DISCORD] Agent replying to channelId: ${lastDiscordMsg.metadata.channelId}`);
+            await discordService.sendDiscordMessage(lastDiscordMsg.metadata.channelId, content);
+          }
+        } else {
+          console.warn(`[DISCORD] Cannot send reply: No channelId found in message metadata.`);
+        }
+      } catch (discordErr) {
+        console.error('[DISCORD] Agent reply failed:', discordErr.message);
+      }
+    }
+
     conversation.status = 'open';
     conversation.lastMessage = content.substring(0, 50);
     conversation.updatedAt = new Date();
     await conversation.save();
 
-    // Emit Socket event so UI updates
-    const io = req.app.get('socketio');
-    if (io) {
-      io.to(conversation._id.toString()).emit('new_message', {
-        conversationId: conversation._id,
-        message: newMessage,
-        channel: conversation.lastChannel
-      });
+    // Emit Socket events for real-time UI/Refresh updates
+    if (req.socketService) {
+      req.socketService.emitNewMessage(conversation._id, newMessage);
     }
 
     res.json({ message: newMessage });
@@ -628,12 +648,13 @@ router.get('/analytics/charts', async (req, res) => {
         { $group: { _id: "$lastChannel", count: { $sum: 1 } } }
       ]);
 
-      const dayObj = { name: dayName, WhatsApp: 0, Email: 0, WebChat: 0, Telegram: 0 };
+      const dayObj = { name: dayName, WhatsApp: 0, Email: 0, WebChat: 0, Telegram: 0, Discord: 0 };
       counts.forEach(c => {
         if (c._id === 'whatsapp') dayObj.WhatsApp = c.count;
         if (c._id === 'email') dayObj.Email = c.count;
         if (c._id === 'webchat') dayObj.WebChat = c.count;
         if (c._id === 'telegram') dayObj.Telegram = c.count;
+        if (c._id === 'discord') dayObj.Discord = c.count;
       });
       volumeData.push(dayObj);
     }
@@ -752,8 +773,19 @@ const Broadcast = require('../models/Broadcast');
 async function executeBroadcast(broadcast) {
   try {
     let users = [];
-    if (broadcast.channel === 'telegram') {
+    if (broadcast.channel === 'all') {
+      // Global broadcast: Find all users with at least one communication channel
+      users = await User.find({ 
+        $or: [
+          { email: { $exists: true, $ne: null } },
+          { telegramChatId: { $exists: true, $ne: null } },
+          { discordUserId: { $exists: true, $ne: null } }
+        ]
+      }).lean();
+    } else if (broadcast.channel === 'telegram') {
       users = await User.find({ telegramChatId: { $exists: true, $ne: null } }, 'telegramChatId name').lean();
+    } else if (broadcast.channel === 'discord') {
+      users = await User.find({ discordUserId: { $exists: true, $ne: null } }, 'discordUserId name').lean();
     } else {
       users = await User.find({ email: { $exists: true, $ne: null } }, 'email name').lean();
     }
@@ -768,27 +800,45 @@ async function executeBroadcast(broadcast) {
 
     for (const user of users) {
       try {
-        if (broadcast.channel === 'telegram') {
-          // Send via Telegram Bot API
-          await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            chat_id: user.telegramChatId,
-            text: broadcast.body
-          });
+        const channelsToSend = [];
+        if (broadcast.channel === 'all') {
+          // Identify every connected channel for this user
+          if (user.email) channelsToSend.push('email');
+          if (user.telegramChatId) channelsToSend.push('telegram');
+          if (user.discordUserId) channelsToSend.push('discord');
         } else {
-          // Send via SMTP
-          await transporter.sendMail({
-            from: `"OMNI Platform" <${process.env.GMAIL_USER}>`,
-            to: user.email,
-            subject: broadcast.subject,
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
-                <h2 style="color: #1A2B4A; margin-bottom: 16px;">${broadcast.subject}</h2>
-                <div style="color: #374151; line-height: 1.6; white-space: pre-line;">${broadcast.body}</div>
-                <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;" />
-                <p style="color: #9CA3AF; font-size: 12px; text-align: center;">This message was sent via OMNI Platform.</p>
-              </div>
-            `,
-          });
+          channelsToSend.push(broadcast.channel);
+        }
+
+        for (const ch of channelsToSend) {
+          if (ch === 'telegram') {
+            await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              chat_id: user.telegramChatId,
+              text: broadcast.body
+            });
+          } else if (ch === 'discord') {
+            const discordService = req.app.get('discordService');
+            if (discordService) {
+              const lastMsg = await Message.findOne({ userId: user._id, channel: 'discord' }).sort({ timestamp: -1 });
+              if (lastMsg && lastMsg.metadata?.channelId) {
+                await discordService.sendDiscordMessage(lastMsg.metadata.channelId, broadcast.body);
+              }
+            }
+          } else if (ch === 'email') {
+            await transporter.sendMail({
+              from: `"OMNI Platform" <${process.env.GMAIL_USER}>`,
+              to: user.email,
+              subject: broadcast.subject || 'Platform Update',
+              html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
+                  <h2 style="color: #1A2B4A; margin-bottom: 16px;">${broadcast.subject || 'Platform Update'}</h2>
+                  <div style="color: #374151; line-height: 1.6; white-space: pre-line;">${broadcast.body}</div>
+                  <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;" />
+                  <p style="color: #9CA3AF; font-size: 12px; text-align: center;">This message was sent via OMNI Platform.</p>
+                </div>
+              `,
+            });
+          }
         }
         sentCount++;
       } catch (e) {
@@ -881,6 +931,59 @@ router.delete('/broadcasts/:id', authenticateAgent, async (req, res) => {
       return res.status(400).json({ error: 'Only scheduled broadcasts can be cancelled.' });
     }
     await Broadcast.findByIdAndUpdate(req.params.id, { status: 'cancelled' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- NOTIFICATION APIs ---
+
+// GET /notifications — list all notifications
+router.get('/notifications', authenticateAgent, async (req, res) => {
+  try {
+    const notifications = await Notification.find()
+      .sort({ timestamp: -1 })
+      .populate('userId', 'name email');
+    res.json({ notifications });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /notifications/:id/read — mark alert as read
+router.patch('/notifications/:id/read', authenticateAgent, async (req, res) => {
+  try {
+    const n = await Notification.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true });
+    if (!n) return res.status(404).json({ error: 'Notification not found' });
+    
+    // Also mark the conversation as read if applicable
+    if (n.conversationId) {
+      await Conversation.findByIdAndUpdate(n.conversationId, { isRead: true });
+    }
+
+    res.json({ success: true, notification: n });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /notifications/read-all — mark all alerts as read
+router.post('/notifications/read-all', authenticateAgent, async (req, res) => {
+  try {
+    await Notification.updateMany({ isRead: false }, { isRead: true });
+    // Also mark all conversations as read
+    await Conversation.updateMany({ isRead: false }, { isRead: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /notifications/:id — remove alert
+router.delete('/notifications/:id', authenticateAgent, async (req, res) => {
+  try {
+    await Notification.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -8,21 +8,24 @@ import {
   Star, Bot, MessageSquare
 } from 'lucide-react';
 
-const InputRow = ({ label, icon: Icon, field, form, setForm, editing, type = 'text' }) => (
-  <div>
-    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">{label}</label>
-    <div className={`flex items-center gap-3 border rounded-xl px-4 h-12 transition-all ${editing ? 'bg-white border-gray-200 focus-within:border-teal/60' : 'bg-gray-50 border-transparent'}`}>
-      <Icon size={15} className="text-gray-400 shrink-0" />
-      <input
-        type={type}
-        className="flex-1 bg-transparent outline-none text-[14px] font-semibold text-primary disabled:text-gray-500"
-        value={form[field]}
-        disabled={!editing}
-        onChange={e => setForm({ ...form, [field]: e.target.value })}
-      />
+const InputRow = (props) => {
+  const { label, icon: Icon, field, form, setForm, editing, type = 'text' } = props;
+  return (
+    <div>
+      <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{label}</label>
+      <div className={`flex items-center gap-3 border rounded-xl px-4 h-12 transition-all ${editing ? 'bg-white border-gray-200 focus-within:border-teal/60' : 'bg-gray-50 border-transparent'}`}>
+        <Icon size={15} className="text-gray-400 shrink-0" />
+        <input
+          type={type}
+          className="flex-1 bg-transparent outline-none text-[14px] font-semibold text-primary disabled:text-gray-500"
+          value={form[field]}
+          disabled={!editing}
+          onChange={e => setForm({ ...form, [field]: e.target.value })}
+        />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function ProfilePage() {
   const { user, updateUserAsync, logout } = useAuthStore();

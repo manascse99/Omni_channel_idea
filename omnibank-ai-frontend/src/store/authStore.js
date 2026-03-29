@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import authService from '../services/authService';
 
-const stored = JSON.parse(sessionStorage.getItem('omni_user') || 'null');
+let stored = null;
+try {
+  stored = JSON.parse(sessionStorage.getItem('omni_user') || 'null');
+} catch (err) {
+  console.error('Failed to parse auth from storage:', err);
+  sessionStorage.removeItem('omni_user');
+}
 
 const useAuthStore = create((set) => ({
   user: stored?.user || null,

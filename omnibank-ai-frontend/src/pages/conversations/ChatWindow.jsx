@@ -1,35 +1,33 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../services/apiClient';
-import { io } from 'socket.io-client';
 import { CheckCircle2, AlertTriangle, UserPlus, MoreVertical, ArrowLeft } from 'lucide-react';
 import MessageInput from './MessageInput';
 import { Link } from 'react-router-dom';
 import EscalationModal from './EscalationModal';
+import useSocketStore from '../../store/socketStore';
 
 export default function ChatWindow({ activeConversationId, onBack }) {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isEscalating, setIsEscalating] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const { socket, joinRoom, leaveRoom } = useSocketStore();
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
-  };
+  }, []);
 
-  useEffect(() => {
+  const fetchConversationData = useCallback(() => {
     if (!activeConversationId) return;
     
-    setLoading(true);
-
-    // Fetch Conversation & Messages
     api.get(`/conversations/${activeConversationId}`)
       .then(res => {
         setConversation(res.data.conversation);
-        setMessages(res.data.messages);
+        setMessages(res.data.messages || []);
         setLoading(false);
         scrollToBottom();
       })
@@ -37,21 +35,31 @@ export default function ChatWindow({ activeConversationId, onBack }) {
         console.error(err);
         setLoading(false);
       });
+  }, [activeConversationId, scrollToBottom]);
 
-    // Setup Socket.io
-    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
-    socket.emit('join_conversation', { conversationId: activeConversationId });
+  useEffect(() => {
+    fetchConversationData();
+  }, [activeConversationId, fetchConversationData]);
 
-    socket.on('new_message', (data) => {
-      setMessages(prev => [...prev, data.message]);
-      scrollToBottom();
-    });
+  useEffect(() => {
+    if (!activeConversationId || !socket) return;
+    
+    joinRoom(activeConversationId);
+
+    const handleNewMessage = (data) => {
+      if (data.conversationId === activeConversationId) {
+        setMessages(prev => [...prev, data.message]);
+        scrollToBottom();
+      }
+    };
+
+    socket.on('new_message', handleNewMessage);
 
     return () => {
-      socket.emit('leave_conversation', { conversationId: activeConversationId });
-      socket.disconnect();
+      socket.off('new_message', handleNewMessage);
+      leaveRoom(activeConversationId);
     };
-  }, [activeConversationId]);
+  }, [activeConversationId, socket, joinRoom, leaveRoom, scrollToBottom]);
 
   const updateStatus = (newStatus) => {
     if (newStatus === 'escalate') {
@@ -126,9 +134,10 @@ export default function ChatWindow({ activeConversationId, onBack }) {
                 <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
                   conversation.lastChannel === 'email' ? 'bg-blue-50 text-blue-600 border-blue-100/50' : 
                   conversation.lastChannel === 'telegram' ? 'bg-sky-50 text-sky-600 border-sky-100/50' :
+                  conversation.lastChannel === 'discord' ? 'bg-indigo-50 text-indigo-600 border-indigo-100/50' :
                   'bg-teal/5 text-teal border-teal/10'
                 }`}>
-                  {conversation.lastChannel === 'email' ? 'Email Thread' : conversation.lastChannel === 'telegram' ? 'Telegram' : conversation.lastChannel}
+                  {conversation.lastChannel === 'email' ? 'Email Thread' : conversation.lastChannel === 'telegram' ? 'Telegram' : conversation.lastChannel === 'discord' ? 'Discord' : conversation.lastChannel}
                 </span>
                 <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
                   conversation.status === 'resolved' ? 'bg-green-50 text-green-600 border-green-100/50' :
@@ -201,9 +210,10 @@ export default function ChatWindow({ activeConversationId, onBack }) {
                       msg.channel === 'email' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
                       msg.channel === 'whatsapp' ? 'text-green-600 bg-green-50 border-green-100' :
                       msg.channel === 'telegram' ? 'text-sky-600 bg-sky-50 border-sky-100' :
+                      msg.channel === 'discord' ? 'text-indigo-600 bg-indigo-50 border-indigo-100' :
                       'text-purple-600 bg-purple-50 border-purple-100'
                     }`}>
-                      via {msg.channel === 'email' ? 'Email' : msg.channel === 'whatsapp' ? 'WhatsApp' : msg.channel === 'telegram' ? 'Telegram' : 'Web Chat'}
+                      via {msg.channel === 'email' ? 'Email' : msg.channel === 'whatsapp' ? 'WhatsApp' : msg.channel === 'telegram' ? 'Telegram' : msg.channel === 'discord' ? 'Discord' : 'Web Chat'}
                     </span>
                   </div>
 

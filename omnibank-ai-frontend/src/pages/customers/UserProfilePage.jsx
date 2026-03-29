@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/apiClient';
 import { Mail, Phone, Calendar, Clock, Globe, ArrowLeft, ShieldCheck, MessageSquare } from 'lucide-react';
@@ -10,10 +10,9 @@ export default function UserProfilePage() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchUserData = useCallback(() => {
     if (!id) return;
     
-    setLoading(true);
     // Fetch Conversation which contains User + Messages
     api.get(`/conversations/${id}`)
       .then(res => {
@@ -26,6 +25,10 @@ export default function UserProfilePage() {
         setLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   if (loading) {
     return (

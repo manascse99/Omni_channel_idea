@@ -16,17 +16,22 @@ const userSchema = new mongoose.Schema({
     sparse: true,
     unique: true
   },
+  discordUserId: {
+    type: String,
+    sparse: true,
+    unique: true
+  },
   name: {
     type: String,
     default: null
   },
   channelHistory: [{
     type: String,
-    enum: ['whatsapp', 'email', 'webchat', 'telegram']
+    enum: ['whatsapp', 'email', 'webchat', 'telegram', 'discord']
   }],
   preferredChannel: {
     type: String,
-    enum: ['whatsapp', 'email', 'webchat', 'telegram'],
+    enum: ['whatsapp', 'email', 'webchat', 'telegram', 'discord'],
     default: 'whatsapp'
   },
   duplicateWarning: {

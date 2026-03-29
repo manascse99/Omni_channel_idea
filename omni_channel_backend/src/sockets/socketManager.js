@@ -92,10 +92,12 @@ const socketManager = (io) => {
         channel: message.channel 
       });
 
-      // Also notify dashboard that a conversation was updated
+      // ALSO Notify the dashboard instantly (even before AI)
       io.emit('conversation_updated', { 
         conversationId: idStr,
-        lastMessage: message.content?.substring(0, 100) || ''
+        status: 'open',
+        lastMessage: message.content?.substring(0, 100) || '',
+        isInstant: true // Flag to indicate this is a pre-AI update
       });
     }
   };

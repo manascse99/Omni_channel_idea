@@ -32,11 +32,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSettings();
-  }, []);
+  }, [fetchSettings]);
 
   useEffect(() => {
     if (settings && !localSettings) {
-      setLocalSettings(settings);
+      const timer = setTimeout(() => {
+        setLocalSettings(settings);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [settings, localSettings]);
 

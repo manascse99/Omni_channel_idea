@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const broadcastSchema = new mongoose.Schema({
   subject: { type: String, required: true },
   body: { type: String, required: true },
-  channel: { type: String, enum: ['email', 'telegram'], default: 'email' },
+  channel: { type: String, enum: ['email', 'telegram', 'discord', 'all'], default: 'email' },
   recipientType: { type: String, enum: ['all', 'filtered'], default: 'all' },
   filter: { type: Object, default: {} }, // e.g. { channel: 'email' }
   scheduledAt: { type: Date, default: null }, // null = send immediately

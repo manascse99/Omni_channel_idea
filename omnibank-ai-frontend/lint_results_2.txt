@@ -1,0 +1,80 @@
+
+/Users/manassrivastava/Desktop/omni_channel/omnibank-ai-frontend/src/components/settings/NotificationsSection.jsx
+  13:26  error  'Icon' is defined but never used  no-unused-vars
+
+/Users/manassrivastava/Desktop/omni_channel/omnibank-ai-frontend/src/pages/conversations/ChatWindow.jsx
+  41:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  39 |
+  40 |   useEffect(() => {
+> 41 |     fetchConversationData();
+     |     ^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  42 |
+  43 |     // Setup Socket.io
+  44 |     const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');  react-hooks/set-state-in-effect
+
+/Users/manassrivastava/Desktop/omni_channel/omnibank-ai-frontend/src/pages/conversations/ConversationList.jsx
+  31:6  warning  React Hook useEffect has a missing dependency: 'fetchConversations'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/manassrivastava/Desktop/omni_channel/omnibank-ai-frontend/src/pages/conversations/EscalationModal.jsx
+  27:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  25 |
+  26 |   useEffect(() => {
+> 27 |     fetchAgents();
+     |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  28 |   }, [fetchAgents]);
+  29 |
+  30 |   if (!isOpen) return null;  react-hooks/set-state-in-effect
+
+/Users/manassrivastava/Desktop/omni_channel/omnibank-ai-frontend/src/pages/customers/UserProfilePage.jsx
+  31:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  29 |
+  30 |   useEffect(() => {
+> 31 |     fetchUserData();
+     |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  32 |   }, [fetchUserData]);
+  33 |
+  34 |   if (loading) {  react-hooks/set-state-in-effect
+
+/Users/manassrivastava/Desktop/omni_channel/omnibank-ai-frontend/src/pages/profile/ProfilePage.jsx
+  11:34  error  'Icon' is defined but never used  no-unused-vars
+
+/Users/manassrivastava/Desktop/omni_channel/omnibank-ai-frontend/src/pages/settings/SettingsPage.jsx
+  39:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  37 |   useEffect(() => {
+  38 |     if (settings && !localSettings) {
+> 39 |       setLocalSettings(settings);
+     |       ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  40 |     }
+  41 |   }, [settings, localSettings]);
+  42 |  react-hooks/set-state-in-effect
+
+✖ 7 problems (6 errors, 1 warning)
+

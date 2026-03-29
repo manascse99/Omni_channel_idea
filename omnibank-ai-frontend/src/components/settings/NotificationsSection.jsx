@@ -10,25 +10,28 @@ const Toggle = ({ k, settings, onToggle }) => (
   </button>
 );
 
-const Section = ({ icon: Icon, title, color, items, settings, onToggle }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-    <div className="flex items-center gap-3 mb-5">
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}><Icon size={18} /></div>
-      <h3 className="text-[15px] font-black text-primary">{title}</h3>
-    </div>
-    <div className="space-y-3">
-      {items.map(({ key, label, desc }) => (
-        <div key={key} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-          <div>
-            <p className="text-[13px] font-bold text-primary">{label}</p>
-            <p className="text-[11px] text-gray-400 font-medium mt-0.5">{desc}</p>
+const Section = (props) => {
+  const { icon: Icon, title, color, items, settings, onToggle } = props;
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-5">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}><Icon size={18} /></div>
+        <h3 className="text-[15px] font-black text-primary">{title}</h3>
+      </div>
+      <div className="space-y-3">
+        {items.map(({ key, label, desc }) => (
+          <div key={key} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+            <div>
+              <p className="text-[13px] font-bold text-primary">{label}</p>
+              <p className="text-[11px] text-gray-400 font-medium mt-0.5">{desc}</p>
+            </div>
+            <Toggle k={key} settings={settings} onToggle={onToggle} />
           </div>
-          <Toggle k={key} settings={settings} onToggle={onToggle} />
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function NotificationsSection() {
   const [settings, setSettings] = useState({

@@ -3,7 +3,7 @@ import api from '../../services/apiClient';
 import {
   Radio, Send, Clock, CheckCircle2, XCircle, Loader2, 
   Calendar, Users, Mail, ChevronRight, Trash2, AlertCircle,
-  Megaphone, Sparkles, BarChart2
+  Megaphone, Sparkles, BarChart2, Globe, MessageSquare
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -71,13 +71,19 @@ export default function BroadcastPage() {
     setSuccess(null);
     try {
       const payload = {
-        subject: form.channel === 'telegram' ? 'Telegram Broadcast' : form.subject,
+        subject: form.channel === 'email' ? form.subject : 
+                 form.channel === 'telegram' ? 'Telegram Broadcast' : 
+                 form.channel === 'discord' ? 'Discord Broadcast' : 'OMNI Global Broadcast',
         body: form.body,
         channel: form.channel,
         scheduledAt: sendType === 'scheduled' ? form.scheduledAt : null,
       };
       await api.post('/broadcasts', payload);
-      setSuccess(sendType === 'scheduled' ? 'Broadcast scheduled successfully!' : `Broadcast queued! ${form.channel === 'telegram' ? 'Telegram messages' : 'Emails'} are being sent.`);
+      let successMsg = sendType === 'scheduled' ? 'Broadcast scheduled successfully!' : 'Broadcast queued!';
+      if (form.channel === 'all') successMsg += ' Sending to ALL connected channels.';
+      else successMsg += ` Sending via ${form.channel.toUpperCase()}.`;
+      
+      setSuccess(successMsg);
       setForm({ subject: '', body: '', scheduledAt: '', channel: 'email' });
       setSendType('now');
       fetchBroadcasts();
@@ -158,11 +164,19 @@ export default function BroadcastPage() {
           <div className="bg-white rounded-[16px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
             <div className="px-6 pt-6 pb-4 border-b border-gray-50">
               <h2 className="text-[16px] font-black text-primary flex items-center gap-2">
-                {form.channel === 'telegram' ? <Send size={16} className="text-[#0088CC]" /> : <Mail size={16} className="text-teal" />} 
-                New {form.channel === 'telegram' ? 'Telegram' : 'Email'} Broadcast
+                {form.channel === 'telegram' ? <Send size={16} className="text-[#0088CC]" /> : 
+                 form.channel === 'discord' ? <MessageSquare size={16} className="text-indigo-500" /> :
+                 form.channel === 'all' ? <Globe size={16} className="text-teal" /> :
+                 <Mail size={16} className="text-teal" />} 
+                New {form.channel === 'telegram' ? 'Telegram' : 
+                     form.channel === 'discord' ? 'Discord' :
+                     form.channel === 'all' ? 'Global' : 'Email'} Broadcast
               </h2>
               <p className="text-[12px] text-gray-400 mt-1">
-                {form.channel === 'telegram' ? 'Send a mass message to all Telegram users.' : 'Send an email to all users in the database.'}
+                {form.channel === 'telegram' ? 'Send a mass message to all Telegram users.' : 
+                 form.channel === 'discord' ? 'Send a mass message to all Discord users.' :
+                 form.channel === 'all' ? 'Reach every user on every connected platform.' :
+                 'Send an email to all users in the database.'}
               </p>
             </div>
 
@@ -170,24 +184,27 @@ export default function BroadcastPage() {
               {/* Channel Selector */}
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Target Channel</label>
-                <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+                <div className="grid grid-cols-2 bg-gray-100/80 rounded-2xl p-1.5 gap-1.5 border border-gray-200/50">
                   {[
-                    { val: 'email', label: 'Email', icon: Mail, color: 'text-teal' },
-                    { val: 'telegram', label: 'Telegram', icon: Send, color: 'text-[#0088CC]' },
+                    { val: 'email', label: 'Email', icon: Mail, color: 'text-teal', activeBg: 'bg-white', activeRing: 'ring-teal/20' },
+                    { val: 'telegram', label: 'Telegram', icon: Send, color: 'text-sky-500', activeBg: 'bg-white', activeRing: 'ring-sky-500/20' },
+                    { val: 'discord', label: 'Discord', icon: MessageSquare, color: 'text-indigo-500', activeBg: 'bg-white', activeRing: 'ring-indigo-500/20' },
+                    { val: 'all', label: 'All Channels', icon: Globe, color: 'text-teal', activeBg: 'bg-gradient-to-br from-white to-teal/5', activeRing: 'ring-teal/30' },
                   ].map(opt => {
                     const Icon = opt.icon;
+                    const isActive = form.channel === opt.val;
                     return (
                       <button
                         key={opt.val}
                         type="button"
                         onClick={() => setForm(f => ({ ...f, channel: opt.val }))}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[12px] font-black transition-all ${
-                          form.channel === opt.val
-                            ? 'bg-white text-primary shadow-sm'
-                            : 'text-gray-400 hover:text-primary'
+                        className={`flex items-center justify-center gap-3 py-3 rounded-xl text-[12px] font-black transition-all duration-300 ${
+                          isActive
+                            ? `${opt.activeBg} text-primary shadow-sm ring-1 ${opt.activeRing}`
+                            : 'text-gray-400 hover:text-primary hover:bg-gray-50'
                         }`}
                       >
-                        <Icon size={13} className={form.channel === opt.val ? opt.color : ''} /> {opt.label}
+                        <Icon size={14} className={isActive ? opt.color : ''} /> {opt.label}
                       </button>
                     );
                   })}
@@ -221,8 +238,8 @@ export default function BroadcastPage() {
                 </div>
               </div>
 
-              {/* Subject (Only for Email) */}
-              {form.channel === 'email' && (
+              {/* Subject (Only for Email/Global) */}
+              {(form.channel === 'email' || form.channel === 'all') && (
                 <div>
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Subject *</label>
                   <input
@@ -230,8 +247,8 @@ export default function BroadcastPage() {
                     value={form.subject}
                     onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
                     placeholder="e.g. Important Platform Update"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/30 transition-all"
-                    required={form.channel === 'email'}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px] font-medium outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/40 bg-white hover:border-gray-300 transition-all duration-300"
+                    required={form.channel === 'email' || form.channel === 'all'}
                   />
                 </div>
               )}
@@ -258,8 +275,8 @@ export default function BroadcastPage() {
                   value={form.body}
                   onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
                   placeholder="Write your broadcast message here..."
-                  rows={7}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[13px] outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/30 transition-all resize-none"
+                  rows={8}
+                  className="w-full border border-gray-200 rounded-2xl px-5 py-4 text-[13px] font-medium outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/40 bg-white hover:border-gray-300 transition-all duration-300 resize-none leading-relaxed"
                   required
                 />
               </div>
@@ -280,12 +297,15 @@ export default function BroadcastPage() {
               <button
                 type="submit"
                 disabled={sending}
-                className={`w-full text-white py-3 rounded-xl text-[13px] font-black flex items-center justify-center gap-2 disabled:opacity-60 transition-all shadow-sm ${
-                  form.channel === 'telegram' ? 'bg-[#0088CC] hover:bg-[#0077B3]' : 'bg-primary hover:bg-primary/90'
+                className={`w-full text-white py-4 rounded-2xl text-[14px] font-black flex items-center justify-center gap-3 disabled:opacity-50 transition-all duration-500 shadow-md transform active:scale-[0.98] ${
+                  form.channel === 'telegram' ? 'bg-[#0088CC] hover:bg-[#0077B3] hover:shadow-sky-200' : 
+                  form.channel === 'discord' ? 'bg-indigo-500 hover:bg-indigo-600 hover:shadow-indigo-200' :
+                  form.channel === 'all' ? 'bg-gradient-to-r from-teal to-primary hover:shadow-teal-200' :
+                  'bg-primary hover:bg-primary/95 hover:shadow-gray-200'
                 }`}
               >
-                {sending ? <Loader2 size={16} className="animate-spin" /> : (sendType === 'scheduled' ? <Clock size={16} /> : <Send size={16} />)}
-                {sending ? 'Processing...' : sendType === 'scheduled' ? 'Schedule Broadcast' : 'Send Broadcast Now'}
+                {sending ? <Loader2 size={18} className="animate-spin" /> : (sendType === 'scheduled' ? <Calendar size={18} /> : <Send size={18} />)}
+                {sending ? 'Processing Broadcast...' : sendType === 'scheduled' ? 'Schedule for Future' : 'Launch Broadcast Now'}
               </button>
             </form>
           </div>
@@ -324,7 +344,10 @@ export default function BroadcastPage() {
                           <div className="flex items-center gap-3 mb-1.5">
                             <StatusBadge status={b.status} />
                             <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${
-                              b.channel === 'telegram' ? 'bg-blue-50 text-[#0088CC]' : 'bg-teal/5 text-teal'
+                              b.channel === 'telegram' ? 'bg-blue-50 text-[#0088CC]' : 
+                              b.channel === 'discord' ? 'bg-indigo-50 text-indigo-500' :
+                              b.channel === 'all' ? 'bg-teal/5 text-teal border border-teal/10' :
+                              'bg-teal/5 text-teal'
                             }`}>
                               {b.channel || 'email'}
                             </span>

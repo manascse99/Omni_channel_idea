@@ -8,14 +8,17 @@ export default function AiIntelligencePanel() {
   useEffect(() => {
     api.get('/analytics/overview')
       .then(res => {
-        const { topIntent } = res.data;
+        const topIntent = res.data?.topIntent;
         if (topIntent && topIntent.name !== 'None') {
           setInsight(`OmniBank AI has detected a high volume of ${topIntent.name} queries. Recommend prioritizing manual response flow for this category.`);
         } else {
           setInsight('OmniBank AI is monitoring incoming traffic. Current volume is stable across all manual channels.');
         }
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error('AiIntelligencePanel Fetch Error:', err);
+        setInsight('AI Intelligence is initializing real-time synchronization...');
+      });
   }, []);
 
   return (

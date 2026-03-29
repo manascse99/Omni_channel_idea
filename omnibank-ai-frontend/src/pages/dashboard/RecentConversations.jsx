@@ -50,7 +50,7 @@ export default function RecentConversations() {
   useEffect(() => {
     api.get('/conversations?limit=3')
       .then(res => {
-        const conversations = res.data.conversations;
+        const conversations = res.data?.conversations || [];
         const mapped = conversations.map(c => ({
           name: c.userId?.name || c.userId?.email || c.userId?.phone || 'Unknown User',
           time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -61,10 +61,13 @@ export default function RecentConversations() {
         setConvos(mapped);
         
         // Calculate dynamic active channel count
-        const channels = new Set(conversations.map(c => c.lastChannel).filter(Boolean));
-        setActiveChannelsCount(channels.size || 1);
+        const channels = new Set(conversations.map(c => c?.lastChannel).filter(Boolean));
+        setActiveChannelsCount(channels.size || 0);
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error('RecentConversations Fetch Error:', err);
+        setConvos([]); // Provide safe fallback
+      });
   }, []);
 
   const getAvatarStyle = (name) => {

@@ -13,7 +13,7 @@ const messageSchema = new mongoose.Schema({
   },
   channel: {
     type: String,
-    enum: ['whatsapp', 'email', 'webchat', 'telegram'],
+    enum: ['whatsapp', 'email', 'webchat', 'telegram', 'discord'],
     required: true
   },
   senderType: {
@@ -61,6 +61,14 @@ const messageSchema = new mongoose.Schema({
     agentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Agent',
+      default: null
+    },
+    discordUserId: {
+      type: String,
+      default: null
+    },
+    channelId: {
+      type: String,
       default: null
     }
   }

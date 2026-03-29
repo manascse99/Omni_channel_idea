@@ -12,6 +12,8 @@ async function resolveIdentity(channel, identifier, name = null) {
     query = { phone: identifier };
   } else if (channel === 'telegram') {
     query = { telegramChatId: identifier };
+  } else if (channel === 'discord') {
+    query = { discordUserId: identifier };
   } else if (channel === 'email' || channel === 'webchat') {
     // Both email and webchat use email as primary ID
     query = { email: lowerIdentifier };
@@ -54,6 +56,8 @@ async function resolveIdentity(channel, identifier, name = null) {
       newUserObj.phone = identifier;
     } else if (channel === 'telegram') {
       newUserObj.telegramChatId = identifier;
+    } else if (channel === 'discord') {
+      newUserObj.discordUserId = identifier;
     } else {
       newUserObj.email = lowerIdentifier;
     }

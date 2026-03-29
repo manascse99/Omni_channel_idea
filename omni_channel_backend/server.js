@@ -5,6 +5,9 @@ const cors = require('cors');
 const { Server } = require('socket.io');
 const connectDB = require('./src/config/db');
 
+// Connect to MongoDB
+connectDB();
+
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
@@ -24,18 +27,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Connect to MongoDB
-connectDB();
-
 // Setup Sockets and get emitters
 const socketService = require('./src/sockets/socketManager')(io);
 
+// Global Socket Injection Middleware
+app.use((req, res, next) => {
+  req.socketService = socketService;
+  next();
+});
+
 // Setup routes
 app.use('/api', require('./src/routes/api'));
-app.use('/webhook', (req, res, next) => {
-  req.socketService = socketService; // Attach to req for webhooks
-  next();
-}, require('./src/routes/webhooks'));
+app.use('/webhook', require('./src/routes/webhooks'));
 
 // Temporary root route
 app.get('/', (req, res) => {
@@ -46,6 +49,14 @@ app.get('/', (req, res) => {
 const MailReceiver = require('./src/services/mailReceiver');
 const mailReceiver = new MailReceiver(io, socketService);
 mailReceiver.start();
+
+// Initialize Discord Bot
+const DiscordService = require('./src/services/discordService');
+const discordService = new DiscordService(io, socketService);
+discordService.start();
+
+// Store services on app for access in routes
+app.set('discordService', discordService);
 
 // Start Server
 const PORT = process.env.PORT || 5000;

@@ -44,36 +44,39 @@ export default function IntegrationsSection() {
         <div key={cat} className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <h3 className="text-[13px] font-black text-gray-400 uppercase tracking-wider mb-4">{cat}</h3>
           <div className="space-y-3">
-            {integrations.filter(i => i.category === cat).map(({ name, desc, connected, logo: Icon }) => (
-              <div key={name} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-primary">
-                    <Icon size={18} />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-bold text-primary">{name}</p>
-                    <p className="text-[11px] text-gray-400 font-medium mt-0.5">{desc}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  {connected && (
-                    <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[10px] font-bold">
-                      <Check size={10} /> Connected
+            {integrations.filter(i => i.category === cat).map((item) => {
+              const Icon = item.logo;
+              return (
+                <div key={item.name} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-primary">
+                      <Icon size={18} />
                     </div>
-                  )}
-                  <button
-                    onClick={() => toggle(name)}
-                    className={`text-[12px] font-bold px-4 py-2 rounded-xl transition-all ${
-                      connected
-                        ? 'text-red-400 hover:bg-red-50 border border-gray-100'
-                        : 'bg-teal text-primary hover:bg-[#00b395] shadow-md shadow-teal/20'
-                    }`}
-                  >
-                    {connected ? 'Disconnect' : 'Connect'}
-                  </button>
+                    <div>
+                      <p className="text-[13px] font-bold text-primary">{item.name}</p>
+                      <p className="text-[11px] text-gray-400 font-medium mt-0.5">{item.desc}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {item.connected && (
+                      <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                        <Check size={10} /> Connected
+                      </div>
+                    )}
+                    <button
+                      onClick={() => toggle(item.name)}
+                      className={`text-[12px] font-bold px-4 py-2 rounded-xl transition-all ${
+                        item.connected
+                          ? 'text-red-400 hover:bg-red-50 border border-gray-100'
+                          : 'bg-teal text-primary hover:bg-[#00b395] shadow-md shadow-teal/20'
+                      }`}
+                    >
+                      {item.connected ? 'Disconnect' : 'Connect'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}

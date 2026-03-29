@@ -18,7 +18,7 @@ export default function VolumeChart() {
         <div className="flex gap-5">
            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-700 tracking-wider"><span className="w-2.5 h-2.5 rounded-full bg-[#00CCA3]"></span> WHATSAPP</div>
            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-700 tracking-wider"><span className="w-2.5 h-2.5 rounded-full bg-[#0F2F55]"></span> EMAIL</div>
-           <div className="flex items-center gap-2 text-[10px] font-bold text-gray-700 tracking-wider"><span className="w-2.5 h-2.5 rounded-full bg-[#D9873E]"></span> WEB CHAT</div>
+           <div className="flex items-center gap-2 text-[10px] font-bold text-gray-700 tracking-wider"><span className="w-2.5 h-2.5 rounded-full bg-[#5865F2]"></span> DISCORD</div>
            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-700 tracking-wider"><span className="w-2.5 h-2.5 rounded-full bg-[#0088CC]"></span> TELEGRAM</div>
            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-700 tracking-wider"><span className="w-2.5 h-2.5 rounded-full bg-[#999999]"></span> WEB CHAT</div>
         </div>
@@ -32,6 +32,7 @@ export default function VolumeChart() {
             <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
             <Bar dataKey="WhatsApp" fill="#00CCA3" radius={[4, 4, 0, 0]} barSize={12} />
             <Bar dataKey="Email" fill="#0F2F55" radius={[4, 4, 0, 0]} barSize={12} />
+            <Bar dataKey="Discord" fill="#5865F2" radius={[4, 4, 0, 0]} barSize={12} />
             <Bar dataKey="Telegram" fill="#0088CC" radius={[4, 4, 0, 0]} barSize={12} />
             <Bar dataKey="WebChat" fill="#999999" radius={[4, 4, 0, 0]} barSize={12} />
           </BarChart>

@@ -59,7 +59,7 @@ router.post('/whatsapp', async (req, res) => {
         }
 
         // 1. Resolve Identity
-        const { user } = await identityService.resolveIdentity('whatsapp', phone);
+        const { user } = await identityService.resolveIdentity('whatsapp', phone).populate('userId', 'phone email name lastSeen channelHistory firstInteractionAt lastChannel telegramChatId discordUserId');
 
         // Optionally update name if newly available
         if (contact && contact.profile && contact.profile.name && !user.name) {
@@ -67,19 +67,26 @@ router.post('/whatsapp', async (req, res) => {
           await user.save();
         }
 
-        // 2. Process Message + Run AI Pipeline
+        // 2. Process Message (FAST)
         const result = await conversationService.processIncomingMessage(user, 'whatsapp', content, {
           whatsappMsgId: msgId
         });
 
-        console.log(`Successfully processed WhatsApp message for user ${user._id}. Intended Reply: ${result.aiResult.reply}`);
-        
-        // 3. Emit Socket event for real-time dashboard update (AI-ready)
+        // --- INSTANT UI UPDATE ---
         if (req.socketService) {
-          req.socketService.emitAiResults(result.conversation, result.newMessage, {
-            content: result.aiResult?.reply || ''
-          });
+          req.socketService.emitNewMessage(result.conversation._id, result.newMessage);
         }
+
+        // 3. BACKGROUND AI Analysis (SLOW)
+        // We do not await this, letting it run in the background
+        conversationService.applyAiAnalysis(
+          result.conversation._id, 
+          result.newMessage._id, 
+          content,
+          req.socketService
+        );
+
+        console.log(`Successfully ingested WhatsApp message for user ${user._id}. AI running in background.`);
       }
     } catch (error) {
       console.error('Error processing WhatsApp webhook:', error);
@@ -110,12 +117,25 @@ router.post('/email', async (req, res) => {
     // 1. Resolve Identity
     const { user } = await identityService.resolveIdentity('email', email);
 
-    // 2. Process Message + Run AI Pipeline
+    // 2. Process Message (FAST)
     const result = await conversationService.processIncomingMessage(user, 'email', textBody, {
       emailSubject: subject
     });
 
-    console.log(`Successfully processed Email webhook for user ${user._id}`);
+    // --- INSTANT UI UPDATE ---
+    if (req.socketService) {
+      req.socketService.emitNewMessage(result.conversation._id, result.newMessage);
+    }
+
+    // 3. BACKGROUND AI Analysis (SLOW)
+    conversationService.applyAiAnalysis(
+      result.conversation._id, 
+      result.newMessage._id, 
+      textBody,
+      req.socketService
+    );
+
+    console.log(`Successfully ingested Email webhook for user ${user._id}. AI running in background.`);
   } catch (error) {
     console.error('Error processing Email webhook:', error);
   }
@@ -129,6 +149,8 @@ router.post('/telegram', async (req, res) => {
   res.sendStatus(200);
 
   const body = req.body;
+  console.log('Telegram Webhook Received:', JSON.stringify(body, null, 2));
+
   if (body.message && body.message.text) {
     try {
       const message = body.message;
@@ -141,19 +163,25 @@ router.post('/telegram', async (req, res) => {
       // 1. Resolve Identity
       const { user } = await identityService.resolveIdentity('telegram', chatId, fullName);
 
-      // 2. Process Message + Run AI Pipeline
+      // 2. Process Message (FAST)
       const result = await conversationService.processIncomingMessage(user, 'telegram', text, {
         telegramChatId: chatId
       });
 
-      console.log(`Successfully processed Telegram message for user ${user._id}`);
-
-      // 3. Emit Socket event for real-time dashboard update
+      // --- INSTANT UI UPDATE ---
       if (req.socketService) {
-        req.socketService.emitAiResults(result.conversation, result.newMessage, {
-          content: result.aiResult?.reply || ''
-        });
+        req.socketService.emitNewMessage(result.conversation._id, result.newMessage);
       }
+
+      // 3. BACKGROUND AI Analysis (SLOW)
+      conversationService.applyAiAnalysis(
+        result.conversation._id, 
+        result.newMessage._id, 
+        text,
+        req.socketService
+      );
+
+      console.log(`Successfully ingested Telegram message for user ${user._id}. AI running in background.`);
     } catch (error) {
       console.error('Error processing Telegram webhook:', error);
     }

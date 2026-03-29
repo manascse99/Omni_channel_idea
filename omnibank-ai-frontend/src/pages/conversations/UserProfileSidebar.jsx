@@ -1,4 +1,4 @@
-import { Mail, Phone, Calendar, Clock, Globe } from 'lucide-react';
+import { Mail, Phone, Calendar, Clock, Globe, MessageSquare } from 'lucide-react';
 
 export default function UserProfileSidebar({ user }) {
   if (!user) return null;
@@ -72,6 +72,7 @@ export default function UserProfileSidebar({ user }) {
                 {ch === 'email' && <Mail size={12} className="text-blue-500" />}
                 {ch === 'webchat' && <Globe size={12} className="text-purple-500" />}
                 {ch === 'whatsapp' && <Phone size={12} className="text-green-500" />}
+                {ch === 'discord' && <MessageSquare size={12} className="text-indigo-500" />}
                 {ch}
               </span>
             ))}

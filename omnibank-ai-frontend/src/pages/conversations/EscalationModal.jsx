@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, User, Search, ShieldAlert, ArrowRight } from 'lucide-react';
 import api from '../../services/apiClient';
 
-export default function EscalationModal({ isOpen, onClose, onEscalate, teamId, conversationId }) {
+export default function EscalationModal({ isOpen, onClose, onEscalate, teamId }) {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedAgent, setSelectedAgent] = useState(null);
 
-  useEffect(() => {
+  const fetchAgents = useCallback(() => {
     if (isOpen && teamId) {
       setLoading(true);
       api.get(`/teams/${teamId}/agents`)
@@ -22,6 +22,10 @@ export default function EscalationModal({ isOpen, onClose, onEscalate, teamId, c
         });
     }
   }, [isOpen, teamId]);
+
+  useEffect(() => {
+    fetchAgents();
+  }, [fetchAgents]);
 
   if (!isOpen) return null;
 

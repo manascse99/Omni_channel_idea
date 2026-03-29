@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Bell, 
   Check, 
@@ -22,26 +22,33 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [notifications, setNotifications] = useState([]);
 
-  useEffect(() => {
-    api.get('/conversations')
+  const fetchNotifications = useCallback(() => {
+    api.get('/notifications')
       .then(res => {
-        const convos = res.data.conversations || [];
-        const mapped = convos.map((c) => ({
-          id: c._id,
-          type: c.status === 'escalated' ? 'critical' : c.status === 'ai-handling' ? 'conversation' : 'team',
-          title: c.status === 'escalated' ? 'Escalation Alert' : 'New Conversation',
-          desc: `Customer ${c.userId?.name || c.userId?.phone || 'Unknown'} reached out via ${c.lastChannel || 'unknown channel'}. ${c.lastMessage ? '"' + c.lastMessage + '"' : ''}`,
-          time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          unread: !c.isRead,
-          status: c.status,
-          icon: c.status === 'escalated' ? AlertCircle : MessageSquare,
-          color: c.status === 'escalated' ? 'text-red-500 bg-red-50' : 'text-teal bg-teal/10',
-          link: `/conversations/${c._id}`
+        const items = res.data?.notifications || [];
+        const mapped = items.map((n) => ({
+          id: n._id,
+          type: n.type || 'conversation',
+          title: n.title || 'New Notification',
+          desc: n.description || '',
+          time: n.timestamp ? new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
+          unread: !n.isRead,
+          status: n.type === 'escalation' ? 'escalated' : 'open',
+          icon: n.type === 'escalation' ? AlertCircle : MessageSquare,
+          color: n.type === 'escalation' ? 'text-red-500 bg-red-50' : 'text-teal bg-teal/10',
+          link: n.link || '#'
         }));
         setNotifications(mapped);
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error('Notifications fetch error:', err);
+        setNotifications([]);
+      });
   }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const filtered = notifications.filter(n => {
     if (activeTab === 'all') return true;
@@ -53,7 +60,7 @@ export default function NotificationsPage() {
 
   const markAllRead = async () => {
     try {
-      await api.post('/conversations/read-all');
+      await api.post('/notifications/read-all');
       setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
     } catch (err) {
       console.error('Failed to mark all as read:', err);
@@ -62,19 +69,30 @@ export default function NotificationsPage() {
 
   const markAsRead = async (id) => {
     try {
-      await api.patch(`/conversations/${id}/read`);
+      await api.patch(`/notifications/${id}/read`);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
     } catch (err) {
       console.error('Failed to mark as read:', err);
     }
   };
 
-  const deleteNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const deleteNotification = async (id) => {
+    try {
+      await api.delete(`/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
   };
 
-  const clearAll = () => {
-    setNotifications([]);
+  const clearAll = async () => {
+    try {
+      // For UX simplicity, we'll just mark all as read or you can implement a bulk delete
+      await api.post('/notifications/read-all');
+      setNotifications([]);
+    } catch (err) {
+      console.error('Failed to clear notifications:', err);
+    }
   };
 
 

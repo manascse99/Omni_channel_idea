@@ -8,6 +8,8 @@ class MailReceiver {
     this.io = io;
     this.socketService = socketService;
     this.processedUids = new Set(); // Session-level deduplication
+    this.isReconnecting = false;
+    this.fetchInterval = null;
     this.blacklist = [
       'facebookmail.com',
       'linkedin.com',
@@ -38,10 +40,17 @@ class MailReceiver {
   }
 
   async start() {
+    if (this.isReconnecting) return;
     try {
+      this.isReconnecting = true;
       console.log('IMAP: Connecting to Gmail...');
+      
+      // Clear old interval if exists
+      if (this.fetchInterval) clearInterval(this.fetchInterval);
+
       const connection = await imaps.connect(this.config);
       this.connection = connection;
+      this.isReconnecting = false;
       
       console.log('IMAP: Connection Successful');
 
@@ -51,24 +60,27 @@ class MailReceiver {
       // Handle connection errors (prevents server crash on ECONNRESET)
       connection.on('error', (err) => {
         console.error('IMAP: Connection Error detected:', err.message);
-        // The interval or next fetch will notice the connection is dead
         this.connection = null;
+        // Trigger a restart after a short delay
+        setTimeout(() => this.start(), 5000);
       });
 
       // Initial check
       await this.fetchUnseen();
 
       // Setup Polling (5-second intervals for real-time feel)
-      setInterval(() => this.fetchUnseen(), 5000);
+      this.fetchInterval = setInterval(() => this.fetchUnseen(), 5000);
 
     } catch (err) {
-      console.error('IMAP: Error during start-up:', err);
-      // Retry after 60 seconds
-      setTimeout(() => this.start(), 60000);
+      this.isReconnecting = false;
+      console.error('IMAP: Error during start-up:', err.message);
+      // Retry after 30 seconds
+      setTimeout(() => this.start(), 30000);
     }
   }
 
   async fetchUnseen() {
+    if (!this.connection) return;
     try {
       const searchCriteria = ['UNSEEN'];
       const fetchOptions = {
@@ -78,28 +90,49 @@ class MailReceiver {
 
       const messages = await this.connection.search(searchCriteria, fetchOptions);
       
-      if (messages.length === 0) return;
+      if (messages.length === 0) {
+        // Only log periodically to avoid spamming the console
+        if (Math.random() < 0.1) console.log('IMAP: No new UNSEEN messages found.');
+        return;
+      }
+
+      console.log(`IMAP: Search found ${messages.length} UNSEEN raw messages.`);
 
       // Filter out UIDs already processed in this session
-      const newMessages = messages.filter(msg => !this.processedUids.has(msg.attributes.uid));
+      const newMessages = messages.filter(msg => {
+        const isProcessed = this.processedUids.has(msg.attributes.uid);
+        if (isProcessed) console.log(`IMAP: UID ${msg.attributes.uid} already processed, skipping.`);
+        return !isProcessed;
+      });
       
-      if (newMessages.length === 0) return;
+      if (newMessages.length === 0) {
+        console.log('IMAP: All found messages were already processed.');
+        return;
+      }
 
-      console.log(`IMAP: Found ${newMessages.length} truly new message(s)`);
+      console.log(`IMAP: Found ${newMessages.length} truly new message(s) to parse.`);
 
       for (const item of newMessages) {
         const id = item.attributes.uid;
         this.processedUids.add(id);
         
         const all = item.parts.find(part => part.which === '');
-        if (!all) continue;
+        if (!all) {
+          console.warn(`IMAP: Could not find full body for UID ${id}`);
+          continue;
+        }
 
         try {
           const parsed = await simpleParser(all.body);
           const from = parsed.from?.value[0]?.address;
 
+          console.log(`IMAP: Parsing message UID ${id} from: ${from}`);
+
           // Loop prevention: Ignore emails from the system's own email
-          if (!from || from.toLowerCase() === process.env.GMAIL_USER.toLowerCase()) continue;
+          if (!from || from.toLowerCase() === process.env.GMAIL_USER.toLowerCase()) {
+            console.log(`IMAP: Ignoring message from self: ${from}`);
+            continue;
+          }
 
           // Blacklist Filter: Ignore notifications from social media or automated bots
           const isBlacklisted = this.blacklist.some(domain => from.toLowerCase().includes(domain));
@@ -113,20 +146,30 @@ class MailReceiver {
           const body = parsed.text || 'Empty Body';
           const messageId = parsed.messageId;
 
-          console.log(`IMAP: Handling [UID: ${id}, ID: ${messageId}] from ${from}`);
-
-          // Process the incoming email manually (No AI)
-          const { conversation, newMessage } = await conversationService.processIncomingMessage(
+          // 1. Process Message (FAST)
+          const result = await conversationService.processIncomingMessage(
             { email: from, name: senderName }, // User info
             'email',
             body,
             { emailSubject: subject, imapUid: id, messageId: messageId }
           );
 
-          // Emit Socket.io event for real-time update
+          if (result.alreadyProcessed) return;
+
+          console.log(`IMAP: Message ingested (FAST) for ${from}.`);
+
+          // --- INSTANT UI UPDATE ---
           if (this.socketService) {
-            this.socketService.emitNewMessage(conversation._id, newMessage);
+            this.socketService.emitNewMessage(result.conversation._id, result.newMessage);
           }
+
+          // 2. BACKGROUND AI Analysis (SLOW)
+          conversationService.applyAiAnalysis(
+            result.conversation._id, 
+            result.newMessage._id, 
+            body,
+            this.socketService
+          );
         } catch (err) {
           console.error(`IMAP: Error processing item ${id}:`, err);
         }

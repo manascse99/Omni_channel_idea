@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -15,12 +15,46 @@ import {
   Bell
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import api from '../../services/apiClient';
 import useAuthStore from '../../store/authStore';
+import useSocketStore from '../../store/socketStore';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const { socket, connect } = useSocketStore();
+
+  const fetchUnreadCount = () => {
+    api.get('/notifications')
+      .then(res => {
+        const unread = (res.data?.notifications || []).filter(n => !n.isRead).length;
+        setUnreadCount(unread);
+      })
+      .catch(err => {
+        console.error('Sidebar notification fetch error:', err);
+        setUnreadCount(0); // Safe fallback
+      });
+  };
+
+  useEffect(() => {
+    connect(); // Initialize singleton socket
+    fetchUnreadCount();
+  }, [connect]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    // Listen for new notifications via shared socket
+    socket.on('new_notification', fetchUnreadCount);
+    socket.on('notification_updated', fetchUnreadCount);
+
+    return () => {
+      socket.off('new_notification', fetchUnreadCount);
+      socket.off('notification_updated', fetchUnreadCount);
+    };
+  }, [socket]);
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -104,6 +138,11 @@ export default function Sidebar() {
                   />
                   {!isCollapsed && (
                     <span className="animate-in fade-in slide-in-from-left-2 duration-300">{item.name}</span>
+                  )}
+                  {item.name === 'Notifications' && unreadCount > 0 && (
+                    <span className={`absolute ${isCollapsed ? 'top-2 right-2' : 'right-4'} bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg shadow-red-500/20 animate-pulse`}>
+                      {unreadCount}
+                    </span>
                   )}
                   {isActive && (
                     <div className="absolute left-0 w-1 h-6 bg-teal rounded-r-full shadow-[0_0_10px_rgba(0,201,167,0.8)]" />

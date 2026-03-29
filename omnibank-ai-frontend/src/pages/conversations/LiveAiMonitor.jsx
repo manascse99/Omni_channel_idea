@@ -1,43 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../services/apiClient';
-import { io } from 'socket.io-client';
 import MonitorCard from './MonitorCard';
 import StrategyInsight from './StrategyInsight';
 import { Zap } from 'lucide-react';
+import useSocketStore from '../../store/socketStore';
 
 export default function LiveAiMonitor({ onSelectCard, activeTab }) {
   const [filter, setFilter] = useState('All');
   const [monitors, setMonitors] = useState([]);
-
-  useEffect(() => {
-    fetchConversations();
-
-    // Listen for real-time new conversations
-    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
-    socket.on('new_message', () => fetchConversations());
-    socket.on('conversation_updated', () => fetchConversations());
-
-    return () => socket.disconnect();
-  }, []);
-
-  const fetchConversations = () => {
-    api.get('/conversations')
-      .then(res => {
-        const mapped = res.data.conversations.map(c => ({
-          id: c._id,
-          name: c.userId?.name || c.userId?.phone || 'Unknown User',
-          status: c.status === 'ai-handling' ? 'AI HANDLING' : c.status === 'escalated' ? 'ESCALATED' : 'NEEDS ATTENTION',
-          waiting: timeSince(c.updatedAt),
-          intent: c.intent || 'General',
-          sentiment: c.sentiment || 'Neutral',
-          confidence: c.aiConfidence || (c.status === 'ai-handling' ? 90 : c.status === 'escalated' ? 30 : 60),
-          avatar: null,
-          channel: c.lastChannel === 'whatsapp' ? 'Direct' : c.lastChannel === 'email' ? 'Channels' : 'AI-Assisted'
-        }));
-        setMonitors(mapped);
-      })
-      .catch(console.error);
-  };
+  const { socket } = useSocketStore();
 
   const timeSince = (dateStr) => {
     const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
@@ -46,11 +17,55 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
     return `${mins}m ${String(secs).padStart(2, '0')}s`;
   };
 
+  const fetchConversations = useCallback(() => {
+    api.get('/conversations')
+      .then(res => {
+        const mapped = (res.data.conversations || []).map(c => ({
+          id: c._id,
+          name: c.userId?.name || c.userId?.phone || 
+                (c.lastChannel === 'telegram' ? `@ID_${c.userId?.telegramChatId}` : 
+                 c.lastChannel === 'discord' ? `@ID_${c.userId?.discordUserId}` : 'Unknown User'),
+          status: c.status === 'ai-handling' ? 'AI HANDLING' : c.status === 'escalated' ? 'ESCALATED' : 'NEEDS ATTENTION',
+          waiting: timeSince(c.updatedAt),
+          intent: c.intent || 'General',
+          sentiment: c.sentiment || 'Neutral',
+          confidence: c.aiConfidence || (c.status === 'ai-handling' ? 90 : c.status === 'escalated' ? 30 : 60),
+          avatar: null,
+          channel: c.lastChannel === 'whatsapp' ? 'Direct' : 
+                   c.lastChannel === 'email' ? 'Channels' : 
+                   c.lastChannel === 'telegram' ? 'Telegram' :
+                   c.lastChannel === 'discord' ? 'Discord' : 'AI-Assisted'
+        }));
+        setMonitors(mapped);
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    // Listen for real-time updates via shared socket
+    socket.on('new_message', fetchConversations);
+    socket.on('conversation_updated', fetchConversations);
+
+    return () => {
+      socket.off('new_message', fetchConversations);
+      socket.off('conversation_updated', fetchConversations);
+    };
+  }, [socket, fetchConversations]);
+
   const getFilteredMonitors = () => {
     let result = monitors;
     if (activeTab && activeTab !== 'all') {
-      const channelLabel = activeTab.replace('-', ' ').toLowerCase();
-      result = result.filter(m => m.channel.toLowerCase() === channelLabel);
+      const channelLabel = activeTab.replace('-', ' ').toLowerCase(); // Filter text
+      result = result.filter(m => {
+        const itemChannel = m.channel.replace('-', ' ').toLowerCase(); // Normalized card channel
+        return itemChannel === channelLabel;
+      });
     }
     if (filter === 'AI Handling') result = result.filter(m => m.status === 'AI HANDLING');
     if (filter === 'Needs Attention') result = result.filter(m => m.status === 'NEEDS ATTENTION');
