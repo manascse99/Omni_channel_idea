@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/apiClient';
 import { Search } from 'lucide-react';
-
+import useSocketStore from '../../store/socketStore';
 export default function ConversationList({ activeTab, activeConversationId, onSelect }) {
   const [convos, setConvos] = useState([]);
+  const { socket } = useSocketStore();
 
-  const fetchConversations = () => {
+  const fetchConversations = useCallback(() => {
     api.get('/conversations')
       .then(res => {
         const mapped = res.data.conversations.map(c => ({
@@ -14,7 +15,6 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
           time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           lastMessage: c.lastMessage || 'No recent messages',
           unread: c.unreadCount || 0,
-          active: c._id === activeConversationId,
           tags: [
             { label: (c.lastChannel || 'Unknown').toUpperCase(), color: c.lastChannel === 'whatsapp' ? 'green' : c.lastChannel === 'email' ? 'gray' : c.lastChannel === 'telegram' ? 'blue' : c.lastChannel === 'discord' ? 'violet' : 'purple' }
           ],
@@ -22,13 +22,26 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
           userId: c.userId // Keep the raw userId for badges/metadata
         }));
         setConvos(mapped);
-      })
+    })
       .catch(console.error);
-  };
+  }, []);
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    // Auto-refresh the sidebar when new messages arise
+    socket.on('new_message', fetchConversations);
+    socket.on('conversation_updated', fetchConversations);
+
+    return () => {
+      socket.off('new_message', fetchConversations);
+      socket.off('conversation_updated', fetchConversations);
+    };
+  }, [socket, fetchConversations]);
 
   const filtered = convos.filter(c => {
     if (!activeTab || activeTab === 'all') return true;
@@ -43,29 +56,32 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
   };
 
   return (
-    <div className="w-[360px] h-full border-r border-gray-200 flex flex-col bg-[#F8FAFC] shrink-0">
+    <div className="w-[380px] h-full border-r border-slate-200/60 flex flex-col bg-slate-50/50 backdrop-blur-xl shrink-0">
       {/* Local Filter Info */}
-      <div className="px-5 py-4 border-b border-gray-200 bg-white">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">
+      <div className="px-6 py-5 border-b border-slate-200/50 bg-white/60 backdrop-blur-md">
+        <p className="text-[11px] font-black text-[#00C9A7] uppercase tracking-widest leading-none">
           Viewing: {activeTab ? activeTab.charAt(0).toUpperCase() + activeTab.slice(1).replace('-', ' ') : 'All Conversations'}
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
         {filtered.map((c, i) => {
           const avatar = getAvatar(c.name);
+          const isActive = c._id === activeConversationId;
+          
           return (
-            <div key={i} onClick={() => onSelect(c._id)} className={`p-5 border-b border-gray-100 cursor-pointer transition-all ${c.active ? 'bg-teal/5 border-l-[3px] border-l-teal' : 'bg-white hover:bg-gray-50 border-l-[3px] border-l-transparent'}`}>
-              <div className="flex gap-3">
-                <div className={`w-10 h-10 rounded-full ${avatar.colorClass} text-white flex items-center justify-center shrink-0 font-black text-xs border border-white shadow-sm`}>
+            <div key={i} onClick={() => onSelect(c._id)} className={`p-5 border-b border-slate-100/50 cursor-pointer transition-all duration-300 relative group overflow-hidden ${isActive ? 'bg-white shadow-sm' : 'bg-transparent hover:bg-white/60'}`}>
+              <div className={`absolute left-0 top-0 bottom-0 w-[4px] transition-all duration-300 ${isActive ? 'bg-gradient-to-b from-[#00C9A7] to-emerald-500 scale-y-100' : 'bg-transparent scale-y-0 group-hover:bg-[#00C9A7]/30 group-hover:scale-y-[0.3]'}`}></div>
+              <div className="flex gap-4 relative z-10">
+                <div className={`w-11 h-11 rounded-[16px] ${avatar.colorClass} text-white flex items-center justify-center shrink-0 font-black text-sm border-2 border-white/80 shadow-inner group-hover:shadow-md transition-all ${isActive ? 'ring-2 ring-[#00C9A7]/20' : ''}`}>
                   {avatar.initials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="text-[13px] font-bold text-gray-900 truncate pr-2">{c.name}</h4>
-                    <span className="text-[10px] font-bold text-gray-400">{c.time}</span>
+                  <div className="flex justify-between items-start mb-1.5">
+                    <h4 className={`text-[14px] font-bold truncate pr-2 transition-colors duration-300 ${isActive ? 'text-[#00C9A7] text-transparent bg-clip-text bg-gradient-to-r from-[#00C9A7] to-teal-700' : 'text-slate-800 group-hover:text-[#00C9A7]'}`}>{c.name}</h4>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{c.time}</span>
                   </div>
-                  <p className={`text-[12px] truncate mb-2 ${c.unread > 0 ? 'font-bold text-gray-800' : 'text-gray-500'}`}>{c.lastMessage}</p>
+                  <p className={`text-[12px] truncate mb-2.5 font-medium ${c.unread > 0 ? 'font-bold text-slate-800' : 'text-slate-500'}`}>{c.lastMessage}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-1">

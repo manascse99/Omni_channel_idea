@@ -108,20 +108,20 @@ export default function ChatWindow({ activeConversationId, onBack }) {
   const emailSubject = messages.find(m => m.channel === 'email' && m.senderType === 'user' && m.metadata?.emailSubject)?.metadata?.emailSubject || '';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#F4F6F9] relative shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] z-10">
+    <div className="flex-1 flex flex-col h-full bg-[#f4f7fb] relative z-10">
       {/* Chat Header */}
-      <div className="h-[90px] border-b border-gray-200 px-6 flex items-center justify-between shrink-0 bg-white shadow-sm z-30">
+      <div className="h-[90px] border-b border-slate-200/50 px-8 flex items-center justify-between shrink-0 bg-white/70 backdrop-blur-xl shadow-sm z-30">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           {/* Back Button */}
           <button 
             onClick={onBack}
-            className="w-10 h-10 rounded-xl border border-gray-100 flex items-center justify-center text-gray-400 hover:text-primary hover:bg-gray-50 transition-all shadow-sm mr-1 shrink-0"
+            className="w-10 h-10 rounded-xl border border-white/80 bg-white/50 flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-white hover:shadow-sm transition-all mr-2 shrink-0 backdrop-blur-sm"
             title="Back to Monitor"
           >
             <ArrowLeft size={18} />
           </button>
 
-          <div className="w-11 h-11 rounded-full bg-[#E5F5EF] text-[#0F7A5E] flex items-center justify-center font-black text-xs border-2 border-white shadow-sm shrink-0">
+          <div className="w-12 h-12 rounded-[16px] bg-gradient-to-br from-emerald-100 to-teal-100 text-[#00C9A7] flex items-center justify-center font-black text-sm border-2 border-white shadow-sm shrink-0">
             {initials}
           </div>
           
@@ -163,15 +163,15 @@ export default function ChatWindow({ activeConversationId, onBack }) {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 shrink-0 ml-4">
-          <Link to={`/customers/${activeConversationId}`} className="h-9 px-4 bg-white border border-gray-200 hover:border-gray-300 text-gray-600 text-[11px] uppercase tracking-wider font-black rounded-xl flex items-center gap-2 transition-all shadow-sm group">
-            <UserPlus size={14} className="text-gray-400 group-hover:text-teal" /> 
+          <Link to={`/customers/${activeConversationId}`} className="h-10 px-5 bg-white/60 backdrop-blur-md border border-slate-200/60 hover:border-emerald-200 hover:bg-white text-slate-700 text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all shadow-sm group">
+            <UserPlus size={16} className="text-slate-400 group-hover:text-emerald-500" /> 
             <span>Profile</span>
           </Link>
-          <button onClick={() => updateStatus('escalate')} className="h-9 px-4 bg-[#FEF2F2] hover:bg-[#FEE2E2] text-red-600 text-[11px] uppercase tracking-wider font-black rounded-xl flex items-center gap-2 transition-all border border-red-100">
-            <AlertTriangle size={14} /> Escalate
+          <button onClick={() => updateStatus('escalate')} className="h-10 px-5 bg-red-50/80 hover:bg-red-100/80 backdrop-blur-md text-red-600 text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all border border-red-200/60 shadow-sm">
+            <AlertTriangle size={16} /> Escalate
           </button>
-          <button onClick={() => updateStatus('resolve')} className="h-9 px-4 bg-teal hover:bg-[#00b395] text-white text-[11px] uppercase tracking-wider font-black rounded-xl flex items-center gap-2 transition-all shadow-md shadow-teal/20">
-            <CheckCircle2 size={14} /> Resolve
+          <button onClick={() => updateStatus('resolve')} className="h-10 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all neo-shadow">
+            <CheckCircle2 size={16} /> Resolve
           </button>
           <button className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50 transition-all ml-1 border border-transparent hover:border-gray-100">
             <MoreVertical size={18} />
@@ -217,8 +217,8 @@ export default function ChatWindow({ activeConversationId, onBack }) {
                     </span>
                   </div>
 
-                  <div className={`rounded-[20px] px-5 py-4 text-[14px] shadow-sm leading-relaxed ${
-                    isUser ? 'bg-white border border-gray-200 rounded-tl-sm text-gray-800' : 'bg-primary text-white rounded-tr-sm shadow-md'
+                  <div className={`rounded-[24px] px-6 py-4 text-[14px] shadow-sm leading-relaxed ${
+                    isUser ? 'bg-white border border-slate-100 rounded-tl-[6px] text-slate-800' : 'bg-gradient-to-br from-[#00C9A7] to-teal-600 text-white rounded-tr-[6px] shadow-md border border-[#00C9A7]/30'
                   }`}>
                     {msg.content}
                   </div>
@@ -233,7 +233,7 @@ export default function ChatWindow({ activeConversationId, onBack }) {
       </div>
 
       {/* Input Area - Stable sticky block */}
-      <div className="mt-auto bg-white border-t border-gray-100 p-6 z-20">
+      <div className="mt-auto bg-transparent pb-6 px-8 z-20">
         <div className="max-w-4xl mx-auto flex flex-col gap-4">
           <MessageInput
             ref={inputRef}
