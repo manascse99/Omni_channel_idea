@@ -11,16 +11,21 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto h-full flex flex-col">
-      <div className="mb-8 flex items-end justify-between">
+      <div className="mb-10 flex items-end justify-between">
         <div>
-          <p className="text-[10px] font-bold tracking-[0.2em] text-gray-400 mb-1.5 uppercase">
+          <p className="text-[11px] font-bold tracking-[0.2em] text-indigo-500 mb-2 uppercase">
             {activeTab === 'Weekly' ? 'Weekly Performance Overview' : activeTab === 'Today' ? 'Today\'s Activity' : 'Real-time Performance'}
           </p>
-          <h1 className="text-[32px] font-extrabold text-primary tracking-tight leading-none">Command Center</h1>
+          <h1 className="text-[36px] font-extrabold tracking-tight leading-none text-slate-900 group">
+            Command Center <span className="text-gradient">AI</span>
+          </h1>
         </div>
-        <div className="bg-amber-50 text-amber-600 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border border-amber-200 shadow-sm transition-all hover:bg-amber-100 cursor-default">
-          <Activity size={14} className={activeTab === 'Live' ? 'animate-pulse' : ''} />
-          {activeTab === 'Live' ? 'AI Active: Optimizing response flow' : 'AI Offline Data: Processing historical trends'}
+        <div className="glass-card !rounded-2xl !bg-white/60 px-5 py-2.5 text-xs font-bold flex items-center gap-3 border border-indigo-50 neo-shadow !shadow-sm transition-all hover:bg-white/90 cursor-default relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className={`w-2 h-2 rounded-full ${activeTab === 'Live' ? 'bg-emerald-500 animate-pulse-glow' : 'bg-amber-500'}`}></div>
+          <span className={`${activeTab === 'Live' ? 'text-indigo-900' : 'text-amber-700'} relative z-10 font-bold`}>
+            {activeTab === 'Live' ? 'AI Flow Optimizer Active' : 'Historical Data Mode'}
+          </span>
         </div>
       </div>
 

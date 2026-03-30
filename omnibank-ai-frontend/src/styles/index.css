@@ -4,6 +4,33 @@
 
 @layer base {
   body {
-    @apply bg-surface text-gray-800 antialiased font-sans;
+    @apply bg-[#F8FAFC] text-slate-900 antialiased font-sans selection:bg-indigo-100 selection:text-indigo-900;
   }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-[32px];
+  }
+
+  .neo-shadow {
+    @apply shadow-[0px_4px_20px_rgba(0,0,0,0.02),0px_10px_40px_rgba(0,0,0,0.04)];
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600;
+  }
+
+  .status-pill {
+    @apply px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 border transition-all duration-300;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

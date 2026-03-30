@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/apiClient';
+import { useNavigate } from 'react-router-dom';
 import { 
   ArrowRight, Mail, MessageSquare, 
-  Globe, CheckCircle2, Clock, Sparkles, ChevronRight 
+  Globe, CheckCircle2, Clock, Sparkles, ChevronRight, User 
 } from 'lucide-react';
 
 const CHANNEL_ICONS = {
@@ -44,6 +45,7 @@ const STATUS_CONFIG = {
 };
 
 export default function RecentConversations() {
+  const navigate = useNavigate();
   const [convos, setConvos] = useState([]);
   const [activeChannelsCount, setActiveChannelsCount] = useState(0);
 
@@ -52,7 +54,9 @@ export default function RecentConversations() {
       .then(res => {
         const conversations = res.data?.conversations || [];
         const mapped = conversations.map(c => ({
+          _id: c._id,
           name: c.userId?.name || c.userId?.email || c.userId?.phone || 'Unknown User',
+          profilePhoto: c.userId?.profilePhoto || null,
           time: new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           msg: c.lastMessage || 'No message context',
           channel: c.lastChannel || 'email',
@@ -84,7 +88,10 @@ export default function RecentConversations() {
   };
 
   return (
-    <div className="bg-white rounded-[32px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex-[1.5] transition-all duration-500">
+    <div className="glass-card p-8 flex-[1.5] transition-all duration-500 relative overflow-hidden group">
+      {/* Background glow effects */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-400/10 blur-[100px] rounded-full pointer-events-none group-hover:bg-indigo-400/20 transition-all duration-700"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-400/10 blur-[100px] rounded-full pointer-events-none group-hover:bg-purple-400/20 transition-all duration-700"></div>
       <div className="flex items-center justify-between mb-10">
         <div>
           <h3 className="text-xl font-bold text-slate-900 tracking-tight">Active Sessions</h3>
@@ -111,15 +118,20 @@ export default function RecentConversations() {
           return (
             <div 
               key={i} 
-              className="group relative flex items-center gap-5 p-5 rounded-[24px] border border-transparent hover:border-slate-100 hover:bg-slate-50/50 transition-all duration-300 cursor-pointer"
+              onClick={() => navigate('/conversations', { state: { activeConversationId: c._id } })}
+              className="group relative flex items-center gap-5 p-5 rounded-[24px] border border-white/40 bg-white/40 hover:bg-white/80 hover:neo-shadow shadow-sm transition-all duration-500 cursor-pointer backdrop-blur-sm hover:-translate-y-1"
             >
               {/* Left Decoration */}
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-r-full scale-y-0 group-hover:scale-y-100 transition-transform duration-300 ${status.dot}`} />
 
               {/* Avatar Section */}
               <div className="relative shrink-0">
-                <div className={`w-14 h-14 rounded-[20px] bg-gradient-to-br ${avatar.gradient} flex items-center justify-center text-white font-bold text-lg shadow-inner ring-4 ring-white`}>
-                  {avatar.initials}
+                <div className={`w-14 h-14 rounded-[20px] bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-lg shadow-inner ring-4 ring-white overflow-hidden`}>
+                  {c.profilePhoto ? (
+                    <img src={c.profilePhoto} alt={c.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={26} strokeWidth={2.5} className="text-slate-400" />
+                  )}
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-lg shadow-md flex items-center justify-center border border-slate-50 ring-2 ring-white">
                   <ChannelIcon size={12} className="text-slate-600" />
@@ -138,7 +150,7 @@ export default function RecentConversations() {
                   {c.msg}
                 </p>
                 <div className="flex items-center">
-                  <span className={`flex items-center gap-2 px-3 py-1 rounded-full ${status.bg} ${status.color} ring-1 ring-inset ring-current/10`}>
+                  <span className={`status-pill ${status.bg} ${status.color} border-${status.color}/20`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${status.dot} ${c.status === 'ai-handling' ? 'animate-pulse' : ''}`} />
                     <span className="text-[11px] font-bold uppercase tracking-tight">{status.label}</span>
                   </span>

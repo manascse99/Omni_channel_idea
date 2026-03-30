@@ -8,12 +8,12 @@ export default function KpiCard({ title, value, subValue, subValueStyle = 'text'
   
   return (
     <div 
-      className="bg-white rounded-[12px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-[150px] relative overflow-hidden transition-all"
+      className="glass-card p-6 flex flex-col justify-between h-[150px] relative overflow-hidden transition-all duration-300 hover:neo-shadow group hover:-translate-y-1 cursor-default"
     >
       <div className="relative z-10">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-3">{title}</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 mt-3 group-hover:text-indigo-400 transition-colors">{title}</p>
         <div className="flex items-end gap-3">
-          <span className="text-[32px] md:text-4xl font-extrabold text-primary tracking-tight leading-none">{value}</span>
+          <span className="text-[32px] md:text-4xl font-extrabold text-slate-800 tracking-tight leading-none transition-all duration-300">{value}</span>
           {subValue && (
             <span className={`${
               subValueStyle === 'pill' 
@@ -29,7 +29,7 @@ export default function KpiCard({ title, value, subValue, subValueStyle = 'text'
       
       {/* Decorative side accent */}
       {highlightColor && (
-        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${colors[highlightColor]}`}></div>
+        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${colors[highlightColor]} opacity-70 group-hover:opacity-100 transition-opacity`}></div>
       )}
     </div>
   );
