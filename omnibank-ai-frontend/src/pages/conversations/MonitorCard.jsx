@@ -36,7 +36,7 @@ export default function MonitorCard({ data, onTakeOver }) {
     <div className="group relative z-10 hover:z-20">
       
       {/* Card Body */}
-      <div className={`relative glass-card !rounded-[24px] border ${cfg.border} overflow-hidden shadow-sm hover:neo-shadow transition-all duration-500 flex flex-col hover:-translate-y-1.5`}>
+      <div className={`relative glass-card !rounded-[24px] border ${cfg.border} overflow-hidden shadow-sm hover:neo-shadow transition-all duration-200 flex flex-col hover:-translate-y-1.5`}>
         
         {/* Top Gradient Header Line instead of Left Strip */}
         <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${cfg.gradient} opacity-90`} />

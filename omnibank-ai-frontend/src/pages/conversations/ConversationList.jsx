@@ -70,15 +70,15 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
           const isActive = c._id === activeConversationId;
           
           return (
-            <div key={i} onClick={() => onSelect(c._id)} className={`p-5 border-b border-slate-100/50 cursor-pointer transition-all duration-300 relative group overflow-hidden ${isActive ? 'bg-white shadow-sm' : 'bg-transparent hover:bg-white/60'}`}>
-              <div className={`absolute left-0 top-0 bottom-0 w-[4px] transition-all duration-300 ${isActive ? 'bg-gradient-to-b from-[#00C9A7] to-emerald-500 scale-y-100' : 'bg-transparent scale-y-0 group-hover:bg-[#00C9A7]/30 group-hover:scale-y-[0.3]'}`}></div>
+            <div key={i} onClick={() => onSelect(c._id)} className={`p-5 border-b border-slate-100/50 cursor-pointer transition-all duration-150 relative group overflow-hidden ${isActive ? 'bg-white shadow-sm' : 'bg-transparent hover:bg-white/60'}`}>
+              <div className={`absolute left-0 top-0 bottom-0 w-[4px] transition-all duration-200 ${isActive ? 'bg-gradient-to-b from-[#00C9A7] to-emerald-500 scale-y-100' : 'bg-transparent scale-y-0 group-hover:bg-[#00C9A7]/30 group-hover:scale-y-[0.3]'}`}></div>
               <div className="flex gap-4 relative z-10">
                 <div className={`w-11 h-11 rounded-[16px] ${avatar.colorClass} text-white flex items-center justify-center shrink-0 font-black text-sm border-2 border-white/80 shadow-inner group-hover:shadow-md transition-all ${isActive ? 'ring-2 ring-[#00C9A7]/20' : ''}`}>
                   {avatar.initials}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-1.5">
-                    <h4 className={`text-[14px] font-bold truncate pr-2 transition-colors duration-300 ${isActive ? 'text-[#00C9A7] text-transparent bg-clip-text bg-gradient-to-r from-[#00C9A7] to-teal-700' : 'text-slate-800 group-hover:text-[#00C9A7]'}`}>{c.name}</h4>
+                    <h4 className={`text-[14px] font-bold truncate pr-2 transition-colors duration-200 ${isActive ? 'text-[#00C9A7] text-transparent bg-clip-text bg-gradient-to-r from-[#00C9A7] to-teal-700' : 'text-slate-800 group-hover:text-[#00C9A7]'}`}>{c.name}</h4>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{c.time}</span>
                   </div>
                   <p className={`text-[12px] truncate mb-2.5 font-medium ${c.unread > 0 ? 'font-bold text-slate-800' : 'text-slate-500'}`}>{c.lastMessage}</p>
