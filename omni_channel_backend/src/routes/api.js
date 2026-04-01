@@ -954,16 +954,23 @@ router.get('/notifications', authenticateAgent, async (req, res) => {
 // PATCH /notifications/:id/read — mark alert as read
 router.patch('/notifications/:id/read', authenticateAgent, async (req, res) => {
   try {
+    console.log(`[NOTIFICATIONS] Received PATCH to mark as read for ID: ${req.params.id}`);
     const n = await Notification.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true });
-    if (!n) return res.status(404).json({ error: 'Notification not found' });
+    if (!n) {
+      console.log(`[NOTIFICATIONS] Notification ${req.params.id} not found in DB!`);
+      return res.status(404).json({ error: 'Notification not found' });
+    }
     
     // Also mark the conversation as read if applicable
     if (n.conversationId) {
       await Conversation.findByIdAndUpdate(n.conversationId, { isRead: true });
+      console.log(`[NOTIFICATIONS] Also updated Conversation: ${n.conversationId}`);
     }
 
+    console.log(`[NOTIFICATIONS] Successfully marked ${req.params.id} as read. Returning 200.`);
     res.json({ success: true, notification: n });
   } catch (err) {
+    console.error(`[NOTIFICATIONS] Error marking as read:`, err);
     res.status(500).json({ error: err.message });
   }
 });

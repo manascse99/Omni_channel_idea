@@ -61,7 +61,7 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     try {
       await api.post('/notifications/read-all');
-      setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+      fetchNotifications();
     } catch (err) {
       console.error('Failed to mark all as read:', err);
     }
@@ -70,7 +70,7 @@ export default function NotificationsPage() {
   const markAsRead = async (id) => {
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+      fetchNotifications();
     } catch (err) {
       console.error('Failed to mark as read:', err);
     }
@@ -79,7 +79,7 @@ export default function NotificationsPage() {
   const deleteNotification = async (id) => {
     try {
       await api.delete(`/notifications/${id}`);
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      fetchNotifications();
     } catch (err) {
       console.error('Failed to delete notification:', err);
     }
@@ -87,9 +87,8 @@ export default function NotificationsPage() {
 
   const clearAll = async () => {
     try {
-      // For UX simplicity, we'll just mark all as read or you can implement a bulk delete
       await api.post('/notifications/read-all');
-      setNotifications([]);
+      fetchNotifications();
     } catch (err) {
       console.error('Failed to clear notifications:', err);
     }

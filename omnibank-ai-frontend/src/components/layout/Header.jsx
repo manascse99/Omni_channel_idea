@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
+import api from '../../services/apiClient';
 
 const PAGE_TABS = {
   '/dashboard': ['Live', 'Today', 'Weekly'],
@@ -32,6 +33,24 @@ export default function Header() {
 
   const basePath = '/' + location.pathname.split('/')[1];
   const tabs = PAGE_TABS[basePath] || [];
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await api.get('/notifications');
+      const unread = res.data?.notifications?.filter(n => !n.isRead) || [];
+      setUnreadCount(unread.length);
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    // Re-fetch periodically or hook into socket if available
+    const interval = setInterval(fetchUnreadCount, 5000);
+    return () => clearInterval(interval);
+  }, []);
   
   // Robust tab matching
   const activeTab = tabs.find(t => 
@@ -132,7 +151,9 @@ export default function Header() {
           }`}
         >
           <Bell size={18} />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+          {unreadCount > 0 && (
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+          )}
         </button>
 
         {/* Settings Shortcut */}
