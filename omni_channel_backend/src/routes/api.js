@@ -545,6 +545,7 @@ router.post('/conversations/:id/escalate', async (req, res) => {
 router.get('/analytics/overview', async (req, res) => {
   try {
     const totalMessages = await Message.countDocuments();
+    const totalUsers = await User.countDocuments();
     const conversations = await Conversation.find().limit(100);
     
     // Calculate AI Resolution Rate
@@ -596,6 +597,7 @@ router.get('/analytics/overview', async (req, res) => {
 
     res.json({
       totalMessages,
+      totalUsers,
       aiResolvedRate: `${aiResolvedRate}%`,
       avgSentiment,
       nps: nps.toFixed(1),

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/apiClient';
-import { Calendar, MessageSquare, Sparkles, Smile, Target } from 'lucide-react';
+import { Calendar, Users, Sparkles, Smile, Target } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import VolumeChart from './VolumeChart';
 import ChannelDonut from './ChannelDonut';
@@ -13,6 +13,7 @@ export default function AnalyticsPage() {
   const activeTab = tab ? tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ') : 'Overview';
   const [stats, setStats] = useState({ 
     totalMessages: 0, 
+    totalUsers: 0,
     aiResolvedRate: '0%', 
     avgSentiment: '0.0', 
     topIntent: { name: 'None', rate: '0%' },
@@ -59,7 +60,7 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-[150px]">
           <div className="flex justify-between items-start">
              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
-               <MessageSquare size={22} fill="currentColor" fillOpacity={0.2} />
+               <Users size={22} fill="currentColor" fillOpacity={0.2} />
              </div>
               <div className="flex items-center gap-1 text-[11px] font-bold text-green-600 px-2 py-1 bg-green-50 rounded-lg">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
@@ -67,8 +68,8 @@ export default function AnalyticsPage() {
               </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">Total Messages</p>
-            <p className="text-[36px] font-extrabold text-primary leading-none">{stats.totalMessages.toLocaleString()}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">Total Users Handled</p>
+            <p className="text-[36px] font-extrabold text-primary leading-none">{stats.totalUsers ? stats.totalUsers.toLocaleString() : '0'}</p>
           </div>
         </div>
 
