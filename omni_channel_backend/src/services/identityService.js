@@ -89,13 +89,42 @@ async function linkIdentity(primaryUserId, additionalIdentifier, identifierType)
     
     if (existingOtherUser && existingOtherUser._id.toString() !== primaryUserId) {
       // Conflict: Another profile already owns this phone/email!
-      // Do NOT auto-merge. Flag the current user.
-      user.duplicateWarning = true;
-      await user.save();
-      return user;
+      // We will merge `user` into `existingOtherUser` (Master)
+      
+      if (user.telegramChatId && !existingOtherUser.telegramChatId) existingOtherUser.telegramChatId = user.telegramChatId;
+      if (user.phone && !existingOtherUser.phone) existingOtherUser.phone = user.phone;
+      if (user.discordUserId && !existingOtherUser.discordUserId) existingOtherUser.discordUserId = user.discordUserId;
+      if (user.email && !existingOtherUser.email) existingOtherUser.email = user.email;
+      
+      user.channelHistory.forEach(ch => {
+        if (!existingOtherUser.channelHistory.includes(ch)) {
+          existingOtherUser.channelHistory.push(ch);
+        }
+      });
+      
+      if (user.name && user.name !== 'New User' && (!existingOtherUser.name || existingOtherUser.name === 'New User')) {
+        existingOtherUser.name = user.name;
+      }
+
+      await existingOtherUser.save();
+
+      // Lazy load models to avoid circular dependencies if any
+      const Conversation = require('../models/Conversation');
+      const Message = require('../models/Message');
+      const Notification = require('../models/Notification');
+      
+      // Transfer records
+      await Conversation.updateMany({ userId: user._id }, { userId: existingOtherUser._id });
+      await Message.updateMany({ userId: user._id }, { userId: existingOtherUser._id });
+      await Notification.updateMany({ userId: user._id }, { userId: existingOtherUser._id });
+
+      // Clean up the secondary profile
+      await User.findByIdAndDelete(user._id);
+      
+      return existingOtherUser;
     }
 
-    // No conflict, safe to merge
+    // No conflict, safe to add identifier
     if (identifierType === 'phone') {
       user.phone = additionalIdentifier;
       if (!user.channelHistory.includes('whatsapp')) user.channelHistory.push('whatsapp');

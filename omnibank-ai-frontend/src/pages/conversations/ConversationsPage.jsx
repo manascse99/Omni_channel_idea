@@ -25,7 +25,7 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-white relative animate-in fade-in duration-500">
+    <div className="flex w-full h-full overflow-hidden bg-[#f4f7fb] relative animate-in fade-in duration-500">
       <ConversationList 
         activeTab={tab} 
         activeConversationId={activeConversationId} 

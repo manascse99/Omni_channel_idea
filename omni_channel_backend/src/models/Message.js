@@ -77,6 +77,7 @@ const messageSchema = new mongoose.Schema({
 // Custom Indexes
 messageSchema.index({ conversationId: 1, timestamp: 1 });
 messageSchema.index({ conversationId: 1, isRead: 1 });
+messageSchema.index({ userId: 1 });
 messageSchema.index({ 'metadata.whatsappMsgId': 1 }, { sparse: true });
 messageSchema.index({ timestamp: -1 });
 

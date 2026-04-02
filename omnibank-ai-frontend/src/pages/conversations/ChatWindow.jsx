@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../services/apiClient';
-import { CheckCircle2, AlertTriangle, UserPlus, MoreVertical, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, MoreVertical, ArrowLeft, Link2, ShieldCheck } from 'lucide-react';
 import MessageInput from './MessageInput';
-import { Link } from 'react-router-dom';
 import EscalationModal from './EscalationModal';
 import useSocketStore from '../../store/socketStore';
+import UserProfileSidebar from './UserProfileSidebar';
 
 export default function ChatWindow({ activeConversationId, onBack }) {
   const [conversation, setConversation] = useState(null);
@@ -87,7 +87,7 @@ export default function ChatWindow({ activeConversationId, onBack }) {
 
   if (!activeConversationId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#F4F6F9] shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 text-gray-400 font-bold">
+      <div className="flex-1 flex items-center justify-center bg-[#F4F6F9] text-gray-400 font-bold">
         Select a conversation from the list to start messaging.
       </div>
     );
@@ -95,7 +95,7 @@ export default function ChatWindow({ activeConversationId, onBack }) {
 
   if (loading || !conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#F4F6F9] shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] z-10 text-gray-400 font-bold">
+      <div className="flex-1 flex items-center justify-center bg-[#F4F6F9] text-gray-400 font-bold">
         Loading conversation...
       </div>
     );
@@ -108,9 +108,9 @@ export default function ChatWindow({ activeConversationId, onBack }) {
   const emailSubject = messages.find(m => m.channel === 'email' && m.senderType === 'user' && m.metadata?.emailSubject)?.metadata?.emailSubject || '';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#f4f7fb] relative z-10">
-      {/* Chat Header */}
-      <div className="h-[90px] border-b border-slate-200/50 px-8 flex items-center justify-between shrink-0 bg-white/70 backdrop-blur-xl shadow-sm z-30">
+    <div className="flex-1 flex flex-col h-full bg-[#f4f7fb] overflow-hidden relative">
+        {/* Chat Header */}
+      <div className="h-[90px] border-b border-slate-200/50 px-8 flex items-center justify-between shrink-0 bg-white shadow-sm z-30 relative">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           {/* Back Button */}
           <button 
@@ -163,14 +163,10 @@ export default function ChatWindow({ activeConversationId, onBack }) {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 shrink-0 ml-4">
-          <Link to={`/customers/${activeConversationId}`} className="h-10 px-5 bg-white/60 backdrop-blur-md border border-slate-200/60 hover:border-emerald-200 hover:bg-white text-slate-700 text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all shadow-sm group">
-            <UserPlus size={16} className="text-slate-400 group-hover:text-emerald-500" /> 
-            <span>Profile</span>
-          </Link>
-          <button onClick={() => updateStatus('escalate')} className="h-10 px-5 bg-red-50/80 hover:bg-red-100/80 backdrop-blur-md text-red-600 text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all border border-red-200/60 shadow-sm">
+          <button onClick={() => updateStatus('escalate')} className="h-10 px-5 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all border border-red-200/60 shadow-sm">
             <AlertTriangle size={16} /> Escalate
           </button>
-          <button onClick={() => updateStatus('resolve')} className="h-10 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all neo-shadow">
+          <button onClick={() => updateStatus('resolve')} className="h-10 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all shadow-md">
             <CheckCircle2 size={16} /> Resolve
           </button>
           <button className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-50 transition-all ml-1 border border-transparent hover:border-gray-100">
@@ -180,14 +176,14 @@ export default function ChatWindow({ activeConversationId, onBack }) {
       </div>
 
       {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto p-8 relative scrollbar-hide">
+      <div className="flex-1 overflow-y-auto p-8 relative scrollbar-hide bg-[#f4f7fb] z-10">
         <div className="flex flex-col gap-6 max-w-4xl mx-auto">
           
           <div className="text-center my-4">
              <span className="bg-gray-200 text-gray-500 text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full">Started {new Date(conversation.createdAt).toLocaleDateString()}</span>
           </div>
 
-          {messages.map((msg, index) => {
+          {[...messages].map((msg, index) => {
             const isUser = msg.senderType === 'user';
             const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now';
 

@@ -110,6 +110,28 @@ async function applyAiAnalysis(conversationId, messageId, content, socketService
     conversation.aiSummary = aiResult.summary || null;
     await conversation.save();
 
+    // -- AI AUTO-LINKING --
+    if (aiResult.extractedContacts) {
+      try {
+        if (aiResult.extractedContacts.email && aiResult.extractedContacts.email.includes('@')) {
+          const mergedUser = await identityService.linkIdentity(conversation.userId, aiResult.extractedContacts.email, 'email');
+          if (mergedUser) {
+            conversation.userId = mergedUser._id; // Update in memory if merged
+            console.log(`[AI-BACKGROUND] Extracted and auto-linked email: ${aiResult.extractedContacts.email}`);
+          }
+        }
+        if (aiResult.extractedContacts.phone && /\\d{7,}/.test(aiResult.extractedContacts.phone)) {
+          const mergedUser = await identityService.linkIdentity(conversation.userId, aiResult.extractedContacts.phone, 'phone');
+          if (mergedUser) {
+            conversation.userId = mergedUser._id;
+            console.log(`[AI-BACKGROUND] Extracted and auto-linked phone: ${aiResult.extractedContacts.phone}`);
+          }
+        }
+      } catch (linkErr) {
+        console.error('[AI-BACKGROUND] Failed to auto-link identity:', linkErr);
+      }
+    }
+
     console.log(`[AI-BACKGROUND] Analysis complete for message ${messageId}. Intent: ${conversation.intent}`);
 
     // If socketService is provided, notify the dashboard of the updated metrics

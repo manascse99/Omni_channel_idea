@@ -28,7 +28,8 @@ async function processMessage(messageContent, conversationHistory = []) {
   
   const systemPrompt = `
 - System: You are "OmniBank AI Monitor", a professional banking assistant.
-- Task: Analyze the latest customer message within the context of the conversation history.
+- Task: Analyze the latest customer message within the context of the conversation history. 
+- You MUST also extract any email address or phone number the user explicitly mentions.
 - Response Format: Return ONLY a JSON object. No markdown, no pre-amble.
 - JSON structure:
   {
@@ -36,7 +37,11 @@ async function processMessage(messageContent, conversationHistory = []) {
     "sentiment": "positive" | "neutral" | "negative",
     "confidence": 0-100,
     "summary": "1-sentence summary of the user's current need",
-    "reply": "A concise, professional bank-style draft reply"
+    "reply": "A concise, professional bank-style draft reply",
+    "extractedContacts": {
+      "email": "email if found, otherwise null",
+      "phone": "phone number if found, otherwise null"
+    }
   }
 `;
 
@@ -58,7 +63,8 @@ JSON Response:
       sentiment: 'neutral',
       confidence: 50,
       summary: 'AI currently unavailable',
-      reply: 'Thanks for reaching out! Our team will get back to you shortly.'
+      reply: 'Thanks for reaching out! Our team will get back to you shortly.',
+      extractedContacts: null
     };
   }
 
@@ -73,7 +79,8 @@ JSON Response:
       sentiment: parsed.sentiment || 'neutral',
       confidence: parsed.confidence || 85,
       summary: parsed.summary || 'Customer message received',
-      reply: parsed.reply || 'Connecting you with an agent...'
+      reply: parsed.reply || 'Connecting you with an agent...',
+      extractedContacts: parsed.extractedContacts || null
     };
   } catch (e) {
     console.error("AI: Failed to parse Ollama JSON. Raw:", rawResponse);
@@ -82,7 +89,8 @@ JSON Response:
       sentiment: 'neutral',
       confidence: 50,
       summary: 'Message received',
-      reply: 'Thank you for your message. We are reviewing it now.'
+      reply: 'Thank you for your message. We are reviewing it now.',
+      extractedContacts: null
     };
   }
 }

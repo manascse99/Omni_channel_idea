@@ -12,6 +12,7 @@ const emailService = require('../services/emailService');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const identityService = require('../services/identityService');
 require('dotenv').config();
 
 const transporter = emailService.transporter;
@@ -225,6 +226,134 @@ router.patch('/agents/me', authenticateAgent, async (req, res) => {
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
 
     res.json({ success: true, agent });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- USER & SEARCH APIs ---
+
+router.get('/users/search', authenticateAgent, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ users: [] });
+
+    const regex = new RegExp(q, 'i');
+    const users = await User.find({
+      $or: [
+        { name: regex },
+        { email: regex },
+        { phone: regex },
+        { telegramChatId: regex },
+        { discordUserId: regex }
+      ]
+    }).limit(10);
+
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/users/:id/details', authenticateAgent, async (req, res) => {
+  const { id } = req.params;
+  console.log(`\n>>> [API_HIT] /users/${id}/details`);
+  try {
+    let user = await User.findById(id).lean();
+    
+    // SMART PIVOT: If ID doesn't match a user, check if it's a conversation ID
+    if (!user) {
+      console.log(`[API_PIVOT] User ID ${id} not found, checking if it's a Conversation...`);
+      const conv = await Conversation.findById(id).populate('userId').lean();
+      if (conv && conv.userId) {
+        console.log(`[API_PIVOT] Success: Found User ${conv.userId.email} via Conversation ID ${id}`);
+        user = conv.userId;
+      }
+    }
+
+    if (!user) {
+      console.log(`[API_FAIL] User or Conversation for ID ${id} not found`);
+      return res.status(404).json({ error: 'User not found for this ID' });
+    }
+
+    console.log(`[API_QUERY] Fetching messages for ${user.email}`);
+    const messages = await Message.find({ userId: user._id })
+      .sort({ timestamp: -1 })
+      .limit(15)
+      .lean();
+
+    console.log(`[API_SUCCESS] Returning ${messages.length} messages`);
+    res.json({ user, messages: messages.reverse() });
+  } catch (err) {
+    console.error(`[API_ERROR]`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- IDENTITY MERGE APIs ---
+
+router.post('/users/merge/manual', authenticateAgent, async (req, res) => {
+  try {
+    const { primaryUserId, targetEmailOrPhone } = req.body;
+    if (!primaryUserId || !targetEmailOrPhone) return res.status(400).json({ error: 'Missing parameters' });
+    
+    // detect type
+    const type = targetEmailOrPhone.includes('@') ? 'email' : 'phone';
+    
+    // link
+    const mergedUser = await identityService.linkIdentity(primaryUserId, targetEmailOrPhone, type);
+    if (!mergedUser) return res.status(404).json({ error: 'Primary user not found' });
+    if (mergedUser.duplicateWarning) return res.status(400).json({ error: 'Duplicate Warning: Cannot auto merge' });
+    
+    res.json({ success: true, message: 'Identities manually merged', user: mergedUser });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/users/merge/request-otp', authenticateAgent, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
+
+    await OtpToken.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { otp, expiresAt },
+      { upsert: true, new: true }
+    );
+
+    const mailOptions = {
+      from: `"OmniBank AI" <${process.env.GMAIL_USER}>`,
+      to: email.toLowerCase(),
+      subject: 'Verify Identity Merge - OmniBank',
+      html: `<h2>OmniBank AI Security</h2><p>Your OTP for identity merging is: <b style="font-size: 24px;">${otp}</b></p>`
+    };
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: 'OTP sent' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/users/merge/verify-otp', authenticateAgent, async (req, res) => {
+  try {
+    const { primaryUserId, email, otp } = req.body;
+    if (!primaryUserId || !email || !otp) return res.status(400).json({ error: 'Missing parameters' });
+
+    const record = await OtpToken.findOne({ email: email.toLowerCase() });
+    if (!record || record.otp !== otp || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    await OtpToken.deleteOne({ email: email.toLowerCase() });
+
+    const mergedUser = await identityService.linkIdentity(primaryUserId, email.toLowerCase(), 'email');
+    if (!mergedUser) return res.status(404).json({ error: 'Primary user not found' });
+
+    res.json({ success: true, message: 'OTP Verified & Merged', user: mergedUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

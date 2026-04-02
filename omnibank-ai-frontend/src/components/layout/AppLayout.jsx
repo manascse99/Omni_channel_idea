@@ -10,11 +10,11 @@ export default function AppLayout() {
     return <Navigate to="/login" replace />;
   }
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-surface font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#F4F6F9] font-sans">
       <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 h-full">
         <Header />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-hidden h-full">
           <Outlet />
         </main>
       </div>
