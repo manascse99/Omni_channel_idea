@@ -142,7 +142,104 @@ async function linkIdentity(primaryUserId, additionalIdentifier, identifierType)
   }
 }
 
+/**
+ * Merges a secondary (duplicate) user profile into a primary user profile.
+ * Designed to be triggered manually by an Admin/Agent.
+ */
+async function mergeUsers(primaryUserId, duplicateUserId) {
+  if (primaryUserId === duplicateUserId) {
+    throw new Error('Cannot merge a user with themselves.');
+  }
+
+  const primaryUser = await User.findById(primaryUserId);
+  const duplicateUser = await User.findById(duplicateUserId);
+
+  if (!primaryUser || !duplicateUser) {
+    throw new Error('Both primary and duplicate users must exist.');
+  }
+
+  // Lazy load to avoid circular dependencies
+  const Conversation = require('../models/Conversation');
+  const Message = require('../models/Message');
+
+  // Step 1: Update all messages from duplicate user to point to primary user
+  await Message.updateMany(
+    { userId: duplicateUserId },
+    { $set: { userId: primaryUserId } }
+  );
+
+  // Step 2: Handle Conversation migration
+  const primaryConversation = await Conversation.findOne({ userId: primaryUserId });
+  const dupConversation = await Conversation.findOne({ userId: duplicateUserId });
+
+  if (dupConversation) {
+    if (primaryConversation) {
+      // Move all messages from duplicate conversation into primary conversation
+      await Message.updateMany(
+        { conversationId: dupConversation._id },
+        { $set: { conversationId: primaryConversation._id } }
+      );
+      // Delete the duplicate conversation safely
+      await Conversation.deleteOne({ _id: dupConversation._id });
+    } else {
+      // If primary somehow doesn't have a conversation, inherit the duplicate's conversation
+      await Conversation.updateOne(
+        { _id: dupConversation._id },
+        { $set: { userId: primaryUserId } }
+      );
+    }
+  }
+
+  // Step 3: Merge user profile fields
+  if (!primaryUser.phone && duplicateUser.phone) primaryUser.phone = duplicateUser.phone;
+  if (!primaryUser.email && duplicateUser.email) primaryUser.email = duplicateUser.email;
+  if (!primaryUser.telegramChatId && duplicateUser.telegramChatId) primaryUser.telegramChatId = duplicateUser.telegramChatId;
+  if (!primaryUser.discordUserId && duplicateUser.discordUserId) primaryUser.discordUserId = duplicateUser.discordUserId;
+  
+  if (duplicateUser.name && duplicateUser.name !== 'New User' && (!primaryUser.name || primaryUser.name === 'New User')) {
+    primaryUser.name = duplicateUser.name;
+  }
+
+  // Inherit channel history
+  duplicateUser.channelHistory.forEach(ch => {
+    if (!primaryUser.channelHistory.includes(ch)) {
+      primaryUser.channelHistory.push(ch);
+    }
+  });
+
+  // Inherit tags
+  if (duplicateUser.tags) {
+    duplicateUser.tags.forEach(tg => {
+      if (!primaryUser.tags.includes(tg)) {
+        primaryUser.tags.push(tg);
+      }
+    });
+  }
+
+  // Use the older of the two firstInteractionAt dates
+  if (duplicateUser.firstInteractionAt && primaryUser.firstInteractionAt) {
+    if (new Date(duplicateUser.firstInteractionAt) < new Date(primaryUser.firstInteractionAt)) {
+      primaryUser.firstInteractionAt = duplicateUser.firstInteractionAt;
+    }
+  }
+
+  // Step 3.5: Bypass Mongoose and directly UNSET unique fields on MongoDB level
+  // This aggressively frees up the constraints so primaryUser can absorb them safely
+  await User.updateOne(
+    { _id: duplicateUserId }, 
+    { $unset: { email: 1, phone: 1, telegramChatId: 1, discordUserId: 1 } }
+  );
+
+  await primaryUser.save();
+
+  // Step 4: Delete the duplicate user
+  await User.deleteOne({ _id: duplicateUserId });
+
+  return primaryUser;
+}
+
 module.exports = {
   resolveIdentity,
-  linkIdentity
+  linkIdentity,
+  mergeUsers
 };

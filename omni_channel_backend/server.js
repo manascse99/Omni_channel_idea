@@ -26,6 +26,7 @@ app.set('socketio', io);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static('uploads'));
 
 // Setup Sockets and get emitters
 const socketService = require('./src/sockets/socketManager')(io);

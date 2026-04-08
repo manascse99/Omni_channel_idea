@@ -87,7 +87,7 @@ export default function NotificationsPage() {
 
   const clearAll = async () => {
     try {
-      await api.post('/notifications/read-all');
+      await api.delete('/notifications/clear-all');
       fetchNotifications();
     } catch (err) {
       console.error('Failed to clear notifications:', err);

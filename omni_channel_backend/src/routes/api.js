@@ -14,6 +14,19 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const identityService = require('../services/identityService');
 require('dotenv').config();
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/')
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, uniqueSuffix + path.extname(file.originalname))
+  }
+});
+const upload = multer({ storage: storage });
 
 const transporter = emailService.transporter;
 
@@ -38,7 +51,7 @@ router.post('/auth/send-otp', async (req, res) => {
 
   try {
     const emailLower = email.toLowerCase();
-    
+
     // Check if agent exists
     const agent = await Agent.findOne({ email: emailLower });
     const isNewUser = !agent;
@@ -101,7 +114,7 @@ router.post('/auth/verify-otp', async (req, res) => {
 
     // Check if agent exists, if not create one
     let agent = await Agent.findOne({ email: emailLower });
-    
+
     if (!agent) {
       if (!name) {
         return res.status(400).json({ error: 'Name is required for first-time registration' });
@@ -182,12 +195,12 @@ router.get('/dashboard/stats', async (req, res) => {
     const total = await Conversation.countDocuments();
     const aiResolved = await Conversation.countDocuments({ status: 'resolved' }); // count actually resolved
     const pending = await Conversation.countDocuments({ status: { $in: ['open', 'escalated'] } });
-    
+
     // Calculate real Avg Response Time (simplified)
     const lastFive = await Conversation.find().limit(5).sort({ updatedAt: -1 });
     let totalDiff = 0;
     let count = 0;
-    
+
     for (const conv of lastFive) {
       const msgs = await Message.find({ conversationId: conv._id }).sort({ timestamp: 1 }).limit(2);
       if (msgs.length >= 2 && msgs[0].senderType === 'user' && msgs[1].senderType === 'agent') {
@@ -195,10 +208,10 @@ router.get('/dashboard/stats', async (req, res) => {
         count++;
       }
     }
-    
+
     const avgMs = count > 0 ? totalDiff / count : 120000; // fallback to 120s
     const avgSeconds = Math.round(avgMs / 1000);
-    const avgResponseTime = avgSeconds > 60 ? `${Math.floor(avgSeconds/60)}m ${avgSeconds%60}s` : `${avgSeconds}s`;
+    const avgResponseTime = avgSeconds > 60 ? `${Math.floor(avgSeconds / 60)}m ${avgSeconds % 60}s` : `${avgSeconds}s`;
 
     res.json({
       total,
@@ -236,7 +249,11 @@ router.patch('/agents/me', authenticateAgent, async (req, res) => {
 router.get('/users/search', authenticateAgent, async (req, res) => {
   try {
     const { q } = req.query;
-    if (!q) return res.json({ users: [] });
+    if (!q || q === 'undefined' || q === 'null' || String(q).trim() === '') {
+      // If no query, return 10 users safely sorted by ID
+      const recentUsers = await User.find({}).sort({ _id: -1 }).limit(10);
+      return res.json({ users: recentUsers });
+    }
 
     const regex = new RegExp(q, 'i');
     const users = await User.find({
@@ -251,6 +268,7 @@ router.get('/users/search', authenticateAgent, async (req, res) => {
 
     res.json({ users });
   } catch (err) {
+    console.error('[API_SEARCH_ERROR]', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -260,7 +278,7 @@ router.get('/users/:id/details', authenticateAgent, async (req, res) => {
   console.log(`\n>>> [API_HIT] /users/${id}/details`);
   try {
     let user = await User.findById(id).lean();
-    
+
     // SMART PIVOT: If ID doesn't match a user, check if it's a conversation ID
     if (!user) {
       console.log(`[API_PIVOT] User ID ${id} not found, checking if it's a Conversation...`);
@@ -294,18 +312,14 @@ router.get('/users/:id/details', authenticateAgent, async (req, res) => {
 
 router.post('/users/merge/manual', authenticateAgent, async (req, res) => {
   try {
-    const { primaryUserId, targetEmailOrPhone } = req.body;
-    if (!primaryUserId || !targetEmailOrPhone) return res.status(400).json({ error: 'Missing parameters' });
-    
-    // detect type
-    const type = targetEmailOrPhone.includes('@') ? 'email' : 'phone';
-    
-    // link
-    const mergedUser = await identityService.linkIdentity(primaryUserId, targetEmailOrPhone, type);
-    if (!mergedUser) return res.status(404).json({ error: 'Primary user not found' });
-    if (mergedUser.duplicateWarning) return res.status(400).json({ error: 'Duplicate Warning: Cannot auto merge' });
-    
-    res.json({ success: true, message: 'Identities manually merged', user: mergedUser });
+    const { primaryUserId, duplicateUserId } = req.body;
+    if (!primaryUserId || !duplicateUserId) {
+      return res.status(400).json({ error: 'Missing parameters: primaryUserId and duplicateUserId are required' });
+    }
+
+    const mergedUser = await identityService.mergeUsers(primaryUserId, duplicateUserId);
+
+    res.json({ success: true, message: 'Profiles manually merged', user: mergedUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -315,9 +329,9 @@ router.post('/users/merge/request-otp', authenticateAgent, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email required' });
-    
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await OtpToken.findOneAndUpdate(
       { email: email.toLowerCase() },
@@ -367,8 +381,8 @@ router.get('/conversations', async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
 
     // Optional filters could apply here, e.g. status, intent
-    const filter = {}; 
-    
+    const filter = {};
+
     const conversations = await Conversation.find(filter)
       .populate('userId', 'phone email name lastSeen channelHistory firstInteractionAt lastChannel')
       .sort({ updatedAt: -1 })
@@ -388,7 +402,7 @@ router.get('/conversations/:id', async (req, res) => {
     const conversation = await Conversation.findById(req.params.id)
       .populate('userId', 'phone email name tags channelHistory duplicateWarning preferredChannel')
       .populate('assignedTeam', 'name');
-    
+
     if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
 
     const messages = await Message.find({ conversationId: conversation._id })
@@ -404,9 +418,20 @@ router.get('/conversations/:id', async (req, res) => {
 // Update single conversation as read
 router.patch('/conversations/:id/read', authenticateAgent, async (req, res) => {
   try {
-    const conversation = await Conversation.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true });
+    const conversation = await Conversation.findByIdAndUpdate(req.params.id, { isRead: true, unreadCount: 0 }, { new: true });
     if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
-    res.json({ success: true, isRead: conversation.isRead });
+
+    // Emit socket event for sidebar refresh
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('conversation_updated', {
+        conversationId: conversation._id,
+        isRead: true,
+        unreadCount: 0
+      });
+    }
+
+    res.json({ success: true, isRead: conversation.isRead, unreadCount: conversation.unreadCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -415,37 +440,55 @@ router.patch('/conversations/:id/read', authenticateAgent, async (req, res) => {
 // Mark all current conversations as read
 router.post('/conversations/read-all', authenticateAgent, async (req, res) => {
   try {
-    await Conversation.updateMany({ isRead: false }, { isRead: true });
+    await Conversation.updateMany({ isRead: false }, { isRead: true, unreadCount: 0 });
+    
+    // Emit socket event for global refresh
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('conversation_updated', { allRead: true });
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/conversations/:id/messages', async (req, res) => {
+router.post('/conversations/:id/messages', upload.single('file'), async (req, res) => {
   try {
     const conversation = await Conversation.findById(req.params.id).populate('userId');
     if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
 
     const { content, agentId } = req.body;
+    let attachmentUrl = null;
+    let fileName = null;
+
+    if (req.file) {
+      attachmentUrl = `/uploads/${req.file.filename}`;
+      fileName = req.file.originalname;
+    }
 
     const newMessage = await Message.create({
       conversationId: conversation._id,
       userId: conversation.userId?._id,
       channel: conversation.lastChannel || 'webchat',
       senderType: 'agent',
-      content: content,
+      content: content || 'sent an attachment',
       isRead: true,
-      metadata: { agentId: agentId || req.agentId }
+      metadata: {
+        agentId: agentId || req.agentId,
+        attachmentUrl: attachmentUrl,
+        fileName: fileName
+      }
     });
 
     // Handle Email Delivery
     console.log(`[DEBUG] Checking email delivery for conversation ${conversation._id}. Channel: ${conversation.lastChannel}`);
     if (conversation.lastChannel === 'email' && conversation.userId?.email) {
       // Fetch latest user message for threading context
-      const lastUserMsg = await Message.findOne({ 
-        conversationId: conversation._id, 
-        senderType: 'user' 
+      const lastUserMsg = await Message.findOne({
+        conversationId: conversation._id,
+        senderType: 'user'
       }).sort({ timestamp: -1 });
 
       console.log(`[DEBUG] Last user message found: ${!!lastUserMsg}. MessageId: ${lastUserMsg?.metadata?.messageId}`);
@@ -471,7 +514,7 @@ router.post('/conversations/:id/messages', async (req, res) => {
     if (conversation.lastChannel === 'telegram' && conversation.userId?.telegramChatId) {
       const chatId = conversation.userId.telegramChatId;
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
-      
+
       console.log(`[TELEGRAM] Agent replying to chatId: ${chatId}`);
       try {
         await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -487,8 +530,8 @@ router.post('/conversations/:id/messages', async (req, res) => {
     if (conversation.lastChannel === 'discord' && conversation.userId?.discordUserId) {
       try {
         // Fetch latest discord message for channelId
-        const lastDiscordMsg = await Message.findOne({ 
-          conversationId: conversation._id, 
+        const lastDiscordMsg = await Message.findOne({
+          conversationId: conversation._id,
           channel: 'discord',
           senderType: 'user'
         }).sort({ timestamp: -1 });
@@ -534,13 +577,13 @@ router.get('/conversations/:id/ai-suggestion', async (req, res) => {
 
     const name = conversation.userId?.name || 'Customer';
     const intent = conversation.intent || 'general query';
-    
+
     // Simple logic-based suggestion (Note: messaging UI currently doesn't show this by request)
     let suggestion = `Hello ${name}, I understand you're reaching out about ${intent}. How can I assist you further?`;
     if (intent.toLowerCase().includes('loan')) {
       suggestion = `Hello ${name}, I see you're interested in our loan products. Based on your profile, I can help you check eligibility for an instant loan of up to ₹5,00,000. Would you like to proceed?`;
     } else if (intent.toLowerCase().includes('fraud')) {
-       suggestion = `Hello ${name}, I've prioritized your fraud alert. I am reviewing the recent transactions on your account now. Please stay on the line.`;
+      suggestion = `Hello ${name}, I've prioritized your fraud alert. I am reviewing the recent transactions on your account now. Please stay on the line.`;
     }
 
     res.json({ suggestion });
@@ -561,7 +604,7 @@ router.get('/dashboard/activity', async (req, res) => {
     const activities = recent.map(c => {
       let title = `New Conversation from ${c.userId?.name || 'User'}`;
       let type = 'neutral';
-      
+
       if (c.status === 'resolved') {
         title = `Resolved Conversation with ${c.userId?.name || 'User'}`;
         type = 'success';
@@ -648,11 +691,11 @@ router.post('/conversations/:id/escalate', async (req, res) => {
     }
 
     const conversation = await Conversation.findByIdAndUpdate(
-      req.params.id, 
-      updateData, 
+      req.params.id,
+      updateData,
       { new: true }
     ).populate('assignedTo', 'name email');
-    
+
     // Emit socket event
     const io = req.app.get('socketio');
     if (io) {
@@ -662,7 +705,7 @@ router.post('/conversations/:id/escalate', async (req, res) => {
         assignedTo: conversation.assignedTo
       });
     }
-    
+
     res.json({ success: true, conversation });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -676,7 +719,7 @@ router.get('/analytics/overview', async (req, res) => {
     const totalMessages = await Message.countDocuments();
     const totalUsers = await User.countDocuments();
     const conversations = await Conversation.find().limit(100);
-    
+
     // Calculate AI Resolution Rate
     const totalConvos = await Conversation.countDocuments();
     const resolvedConvos = await Conversation.countDocuments({ status: 'resolved' });
@@ -685,26 +728,26 @@ router.get('/analytics/overview', async (req, res) => {
     // Calculate Avg Sentiment
     const sentimentSum = conversations.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0);
     const avgSentiment = conversations.length > 0 ? (sentimentSum / conversations.length).toFixed(1) : "0.0";
-    
+
     // Calculate Sentiment Trend (Last 7 days vs previous 7 days)
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    
+
     const recentConvos = await Conversation.find({ updatedAt: { $gte: sevenDaysAgo } });
     const olderConvos = await Conversation.find({ updatedAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo } });
-    
+
     const recentScore = recentConvos.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0) / (recentConvos.length || 1);
     const olderScore = olderConvos.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0) / (olderConvos.length || 1);
-    
+
     const diff = recentScore - olderScore;
-    const sentimentTrend = diff >= 0 ? `+${((diff/5)*100).toFixed(1)}%` : `${((diff/5)*100).toFixed(1)}%`;
+    const sentimentTrend = diff >= 0 ? `+${((diff / 5) * 100).toFixed(1)}%` : `${((diff / 5) * 100).toFixed(1)}%`;
 
     // Top Intent
     const intentCounts = {};
     conversations.forEach(c => {
       if (c.intent) intentCounts[c.intent] = (intentCounts[c.intent] || 0) + 1;
     });
-    const topIntent = Object.entries(intentCounts).sort((a,b) => b[1] - a[1])[0] || ["General", 0];
+    const topIntent = Object.entries(intentCounts).sort((a, b) => b[1] - a[1])[0] || ["General", 0];
     const topIntentRate = totalConvos > 0 ? Math.round((topIntent[1] / totalConvos) * 100) : 0;
 
     // NPS Calculation
@@ -770,8 +813,8 @@ router.get('/analytics/charts', async (req, res) => {
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const startOfDay = new Date(d.setHours(0,0,0,0));
-      const endOfDay = new Date(d.setHours(23,59,59,999));
+      const startOfDay = new Date(d.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(d.setHours(23, 59, 59, 999));
       const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
 
       const counts = await Conversation.aggregate([
@@ -808,7 +851,7 @@ router.get('/analytics/escalations', async (req, res) => {
       .populate('userId', 'name phone')
       .populate('assignedTo', 'name')
       .limit(10);
-    
+
     res.json({ escalations });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -826,7 +869,7 @@ router.get('/teams', async (req, res) => {
     const teamsWithStats = teams.map(team => {
       const teamAgents = agents.filter(a => a.teamId && a.teamId.toString() === team._id.toString());
       const teamConvos = conversations.filter(c => c.assignedTeam && c.assignedTeam.toString() === team._id.toString());
-      
+
       return {
         _id: team._id,
         name: team.name,
@@ -906,7 +949,7 @@ async function executeBroadcast(broadcast) {
     let users = [];
     if (broadcast.channel === 'all') {
       // Global broadcast: Find all users with at least one communication channel
-      users = await User.find({ 
+      users = await User.find({
         $or: [
           { email: { $exists: true, $ne: null } },
           { telegramChatId: { $exists: true, $ne: null } },
@@ -1091,11 +1134,11 @@ router.patch('/notifications/:id/read', authenticateAgent, async (req, res) => {
       console.log(`[NOTIFICATIONS] Notification ${req.params.id} not found in DB!`);
       return res.status(404).json({ error: 'Notification not found' });
     }
-    
+
     // Also mark the conversation as read if applicable
     if (n.conversationId) {
-      await Conversation.findByIdAndUpdate(n.conversationId, { isRead: true });
-      console.log(`[NOTIFICATIONS] Also updated Conversation: ${n.conversationId}`);
+      await Conversation.findByIdAndUpdate(n.conversationId, { isRead: true, unreadCount: 0 });
+      console.log(`[NOTIFICATIONS] Also updated Conversation: ${n.conversationId} and reset unreadCount.`);
     }
 
     console.log(`[NOTIFICATIONS] Successfully marked ${req.params.id} as read. Returning 200.`);
@@ -1110,8 +1153,18 @@ router.patch('/notifications/:id/read', authenticateAgent, async (req, res) => {
 router.post('/notifications/read-all', authenticateAgent, async (req, res) => {
   try {
     await Notification.updateMany({ isRead: false }, { isRead: true });
-    // Also mark all conversations as read
-    await Conversation.updateMany({ isRead: false }, { isRead: true });
+    // Also mark all conversations as read and reset their counts
+    await Conversation.updateMany({ isRead: false }, { isRead: true, unreadCount: 0 });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /notifications/clear-all — clear all alerts
+router.delete('/notifications/clear-all', authenticateAgent, async (req, res) => {
+  try {
+    await Notification.deleteMany({});
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

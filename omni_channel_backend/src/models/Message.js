@@ -70,6 +70,14 @@ const messageSchema = new mongoose.Schema({
     channelId: {
       type: String,
       default: null
+    },
+    attachmentUrl: {
+      type: String,
+      default: null
+    },
+    fileName: {
+      type: String,
+      default: null
     }
   }
 });

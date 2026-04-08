@@ -75,7 +75,7 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
   const tabs = ['All', 'AI Handling', 'Needs Attention', 'Escalated'];
 
   return (
-    <div className="flex-1 overflow-y-auto p-10 bg-[#f4f7fb] relative">
+    <div className="w-full h-full overflow-y-auto p-10 bg-[#f4f7fb] relative scrollbar-hide">
       {/* Soft background ambient glows for the monitor space */}
       <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-[#00C9A7]/10 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-emerald-400/10 blur-[120px] rounded-full pointer-events-none"></div>
