@@ -319,6 +319,12 @@ router.post('/users/merge/manual', authenticateAgent, async (req, res) => {
 
     const mergedUser = await identityService.mergeUsers(primaryUserId, duplicateUserId);
 
+    // Refresh UI for all agents
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('conversation_updated', { merged: true, primaryUserId });
+    }
+
     res.json({ success: true, message: 'Profiles manually merged', user: mergedUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1142,6 +1148,7 @@ router.patch('/notifications/:id/read', authenticateAgent, async (req, res) => {
     }
 
     console.log(`[NOTIFICATIONS] Successfully marked ${req.params.id} as read. Returning 200.`);
+    if (req.socketService) req.socketService.emitNotificationUpdated();
     res.json({ success: true, notification: n });
   } catch (err) {
     console.error(`[NOTIFICATIONS] Error marking as read:`, err);
@@ -1155,6 +1162,7 @@ router.post('/notifications/read-all', authenticateAgent, async (req, res) => {
     await Notification.updateMany({ isRead: false }, { isRead: true });
     // Also mark all conversations as read and reset their counts
     await Conversation.updateMany({ isRead: false }, { isRead: true, unreadCount: 0 });
+    if (req.socketService) req.socketService.emitNotificationUpdated();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1165,6 +1173,7 @@ router.post('/notifications/read-all', authenticateAgent, async (req, res) => {
 router.delete('/notifications/clear-all', authenticateAgent, async (req, res) => {
   try {
     await Notification.deleteMany({});
+    if (req.socketService) req.socketService.emitNotificationUpdated();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1175,6 +1184,7 @@ router.delete('/notifications/clear-all', authenticateAgent, async (req, res) =>
 router.delete('/notifications/:id', authenticateAgent, async (req, res) => {
   try {
     await Notification.findByIdAndDelete(req.params.id);
+    if (req.socketService) req.socketService.emitNotificationUpdated();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

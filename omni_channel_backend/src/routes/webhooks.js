@@ -170,6 +170,12 @@ router.post('/telegram', async (req, res) => {
 
       // --- INSTANT UI UPDATE ---
       if (req.socketService) {
+        // If a merge happened, tell the UI to prune the deleted thread FIRST
+        if (result.newMessage.metadata?.deletedConversationId) {
+          req.socketService.emitConversationDeleted(result.newMessage.metadata.deletedConversationId);
+        }
+        
+        // Then emit the message to the MASTER thread
         req.socketService.emitNewMessage(result.conversation._id, result.newMessage);
       }
 

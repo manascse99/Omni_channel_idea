@@ -43,14 +43,27 @@ async function resolveIdentity(channel, identifier, name = null) {
 
     // Determine fallback name
     const fallbackName = channel === 'email' ? lowerIdentifier.split('@')[0] : 'New User';
+    const finalName = name || fallbackName;
+
+    // --- GENERAL CASE FIX: Soft Match Duplicate Detection ---
+    // If we're creating a new user, check if someone with the SAME name already exists.
+    // This handles the "2 channels" problem by alerting the agent.
+    const potentialDuplicate = await User.findOne({ 
+      name: { $regex: new RegExp(`^${finalName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } 
+    });
 
     const newUserObj = {
-      name: name || fallbackName,
+      name: finalName,
       channelHistory: [channel],
       lastChannel: channel,
       preferredChannel: channel,
-      firstInteractionAt: new Date()
+      firstInteractionAt: new Date(),
+      duplicateWarning: !!potentialDuplicate // Flag automatically if name exists elsewhere
     };
+    
+    if (potentialDuplicate) {
+      console.log(`[IDENTITY] Potential duplicate detected by name: "${finalName}". Setting duplicateWarning: true.`);
+    }
 
     if (channel === 'whatsapp') {
       newUserObj.phone = identifier;
@@ -91,6 +104,8 @@ async function linkIdentity(primaryUserId, additionalIdentifier, identifierType)
       // Conflict: Another profile already owns this phone/email!
       // We will merge `user` into `existingOtherUser` (Master)
       
+      console.log(`[IDENTITY] Merge conflict detected in linkIdentity. Merging ${user._id} -> ${existingOtherUser._id}`);
+
       if (user.telegramChatId && !existingOtherUser.telegramChatId) existingOtherUser.telegramChatId = user.telegramChatId;
       if (user.phone && !existingOtherUser.phone) existingOtherUser.phone = user.phone;
       if (user.discordUserId && !existingOtherUser.discordUserId) existingOtherUser.discordUserId = user.discordUserId;
@@ -106,22 +121,33 @@ async function linkIdentity(primaryUserId, additionalIdentifier, identifierType)
         existingOtherUser.name = user.name;
       }
 
-      await existingOtherUser.save();
+      // CRITICAL: Unset identifiers on duplicate to prevent E11000 duplicate key error on save
+      await User.updateOne(
+        { _id: user._id }, 
+        { $unset: { email: 1, phone: 1, telegramChatId: 1, discordUserId: 1 } }
+      );
 
-      // Lazy load models to avoid circular dependencies if any
-      const Conversation = require('../models/Conversation');
-      const Message = require('../models/Message');
-      const Notification = require('../models/Notification');
-      
-      // Transfer records
-      await Conversation.updateMany({ userId: user._id }, { userId: existingOtherUser._id });
+      let deletedConversationId = null;
+      if (dupConversation) {
+        if (primaryConversation) {
+          // Merge messages into the master thread
+          await Message.updateMany({ conversationId: dupConversation._id }, { conversationId: primaryConversation._id });
+          deletedConversationId = dupConversation._id;
+          await Conversation.deleteOne({ _id: dupConversation._id });
+        } else {
+          // No primary conversation, so the duplicate's becomes the primary
+          await Conversation.updateOne({ _id: dupConversation._id }, { userId: existingOtherUser._id });
+        }
+      }
+
+      // Transfer other records
       await Message.updateMany({ userId: user._id }, { userId: existingOtherUser._id });
       await Notification.updateMany({ userId: user._id }, { userId: existingOtherUser._id });
 
       // Clean up the secondary profile
       await User.findByIdAndDelete(user._id);
       
-      return existingOtherUser;
+      return { masterUser: existingOtherUser, deletedConversationId };
     }
 
     // No conflict, safe to add identifier
@@ -134,7 +160,7 @@ async function linkIdentity(primaryUserId, additionalIdentifier, identifierType)
     }
 
     await user.save();
-    return user;
+    return { masterUser: user, deletedConversationId: null };
 
   } catch (error) {
     console.error("Identity Linking Error:", error);
@@ -151,6 +177,8 @@ async function mergeUsers(primaryUserId, duplicateUserId) {
     throw new Error('Cannot merge a user with themselves.');
   }
 
+  console.log(`[MERGE] Starting merge: Duplicate (${duplicateUserId}) -> Primary (${primaryUserId})`);
+
   const primaryUser = await User.findById(primaryUserId);
   const duplicateUser = await User.findById(duplicateUserId);
 
@@ -161,27 +189,52 @@ async function mergeUsers(primaryUserId, duplicateUserId) {
   // Lazy load to avoid circular dependencies
   const Conversation = require('../models/Conversation');
   const Message = require('../models/Message');
+  const Notification = require('../models/Notification');
 
   // Step 1: Update all messages from duplicate user to point to primary user
-  await Message.updateMany(
+  console.log(`[MERGE] Transferring messages for userId ${duplicateUserId}...`);
+  const messageUpdate = await Message.updateMany(
     { userId: duplicateUserId },
     { $set: { userId: primaryUserId } }
   );
+  console.log(`[MERGE] Updated ${messageUpdate.modifiedCount} user-sent messages.`);
 
   // Step 2: Handle Conversation migration
   const primaryConversation = await Conversation.findOne({ userId: primaryUserId });
   const dupConversation = await Conversation.findOne({ userId: duplicateUserId });
 
   if (dupConversation) {
+    console.log(`[MERGE] Found duplicate conversation: ${dupConversation._id}`);
     if (primaryConversation) {
+      console.log(`[MERGE] Merging into primary conversation: ${primaryConversation._id}`);
+      
       // Move all messages from duplicate conversation into primary conversation
-      await Message.updateMany(
+      const convMessageUpdate = await Message.updateMany(
         { conversationId: dupConversation._id },
         { $set: { conversationId: primaryConversation._id } }
       );
+      console.log(`[MERGE] Moved ${convMessageUpdate.modifiedCount} messages between threads.`);
+
+      // Combine unread counts if applicable
+      if (dupConversation.unreadCount > 0) {
+        primaryConversation.unreadCount = (primaryConversation.unreadCount || 0) + dupConversation.unreadCount;
+        primaryConversation.isRead = false;
+      }
+
+      // Preserve the most recent channel info
+      if (dupConversation.updatedAt > primaryConversation.updatedAt) {
+        primaryConversation.lastChannel = dupConversation.lastChannel;
+        primaryConversation.lastMessage = dupConversation.lastMessage;
+        primaryConversation.updatedAt = dupConversation.updatedAt;
+      }
+
+      await primaryConversation.save();
+
       // Delete the duplicate conversation safely
       await Conversation.deleteOne({ _id: dupConversation._id });
+      console.log(`[MERGE] Deleted duplicate conversation.`);
     } else {
+      console.log(`[MERGE] Primary has no conversation. Inheriting duplicate conversation.`);
       // If primary somehow doesn't have a conversation, inherit the duplicate's conversation
       await Conversation.updateOne(
         { _id: dupConversation._id },
@@ -190,7 +243,11 @@ async function mergeUsers(primaryUserId, duplicateUserId) {
     }
   }
 
-  // Step 3: Merge user profile fields
+  // Step 3: Transfer Notifications
+  await Notification.updateMany({ userId: duplicateUserId }, { userId: primaryUserId });
+
+  // Step 4: Merge user profile fields
+  console.log(`[MERGE] Unifying identifiers...`);
   if (!primaryUser.phone && duplicateUser.phone) primaryUser.phone = duplicateUser.phone;
   if (!primaryUser.email && duplicateUser.email) primaryUser.email = duplicateUser.email;
   if (!primaryUser.telegramChatId && duplicateUser.telegramChatId) primaryUser.telegramChatId = duplicateUser.telegramChatId;
@@ -223,7 +280,7 @@ async function mergeUsers(primaryUserId, duplicateUserId) {
     }
   }
 
-  // Step 3.5: Bypass Mongoose and directly UNSET unique fields on MongoDB level
+  // Step 5: Bypass Mongoose and directly UNSET unique fields on MongoDB level
   // This aggressively frees up the constraints so primaryUser can absorb them safely
   await User.updateOne(
     { _id: duplicateUserId }, 
@@ -231,9 +288,11 @@ async function mergeUsers(primaryUserId, duplicateUserId) {
   );
 
   await primaryUser.save();
+  console.log(`[MERGE] Primary profile updated.`);
 
-  // Step 4: Delete the duplicate user
+  // Step 6: Delete the duplicate user
   await User.deleteOne({ _id: duplicateUserId });
+  console.log(`[MERGE] Duplicate user deleted. Merge Complete.`);
 
   return primaryUser;
 }

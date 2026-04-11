@@ -99,6 +99,18 @@ const socketManager = (io) => {
         lastMessage: message.content?.substring(0, 100) || '',
         isInstant: true // Flag to indicate this is a pre-AI update
       });
+    },
+    // New helper to notify UI to remove a merged conversation
+    emitConversationDeleted: (conversationId) => {
+      if (!conversationId) return;
+      const idStr = conversationId.toString();
+      console.log(`[SOCKET] Notifying deletion of conversation: ${idStr}`);
+      io.emit('conversation_deleted', { conversationId: idStr });
+    },
+    // New helper to notify UI to refresh notification counts
+    emitNotificationUpdated: () => {
+      console.log('[SOCKET] Notifying notification update to all clients');
+      io.emit('notification_updated');
     }
   };
 };

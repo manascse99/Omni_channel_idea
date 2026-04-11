@@ -172,10 +172,10 @@ export default function ChatWindow({ activeConversationId, onBack }) {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-3 shrink-0 ml-4">
-            <button onClick={() => updateStatus('escalate')} className="h-10 px-5 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all border border-red-200/60 shadow-sm">
+            <button onClick={() => updateStatus('escalate')} className="h-10 px-5 bg-red-600 hover:bg-red-700 text-white text-[11px] uppercase tracking-wider font-extrabold rounded-xl flex items-center gap-2 transition-all shadow-md">
               <AlertTriangle size={16} /> Escalate
             </button>
-            <button onClick={() => updateStatus('resolve')} className="h-10 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-[11px] uppercase tracking-wider font-bold rounded-xl flex items-center gap-2 transition-all shadow-md">
+            <button onClick={() => updateStatus('resolve')} className="h-10 px-5 bg-teal hover:brightness-95 text-white text-[11px] uppercase tracking-wider font-extrabold rounded-xl flex items-center gap-2 transition-all shadow-md">
               <CheckCircle2 size={16} /> Resolve
             </button>
             <button 

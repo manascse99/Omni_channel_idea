@@ -36,10 +36,16 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
     // Auto-refresh the sidebar when new messages arise
     socket.on('new_message', fetchConversations);
     socket.on('conversation_updated', fetchConversations);
+    
+    socket.on('conversation_deleted', (data) => {
+      console.log('[SOCKET] Removing merged conversation:', data.conversationId);
+      setConvos(prev => prev.filter(c => c._id !== data.conversationId));
+    });
 
     return () => {
       socket.off('new_message', fetchConversations);
       socket.off('conversation_updated', fetchConversations);
+      socket.off('conversation_deleted');
     };
   }, [socket, fetchConversations]);
 
@@ -78,7 +84,14 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-1.5">
-                    <h4 className={`text-[14px] font-bold truncate pr-2 transition-colors duration-200 ${isActive ? 'text-[#00C9A7] text-transparent bg-clip-text bg-gradient-to-r from-[#00C9A7] to-teal-700' : 'text-slate-800 group-hover:text-[#00C9A7]'}`}>{c.name}</h4>
+                    <h4 className={`text-[14px] font-bold truncate pr-2 transition-colors duration-200 ${isActive ? 'text-[#00C9A7] text-transparent bg-clip-text bg-gradient-to-r from-[#00C9A7] to-teal-700' : 'text-slate-800 group-hover:text-[#00C9A7]'}`}>
+                      {c.name}
+                      {c.userId?.duplicateWarning && (
+                        <span className="ml-2 inline-flex items-center text-orange-500" title="Possible Duplicate Profile Detected">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        </span>
+                      )}
+                    </h4>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{c.time}</span>
                   </div>
                   <p className={`text-[12px] truncate mb-2.5 font-medium ${c.unread > 0 ? 'font-bold text-slate-800' : 'text-slate-500'}`}>{c.lastMessage}</p>

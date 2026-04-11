@@ -19,17 +19,40 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
       user = resolvedUser;
     }
 
-    // 1. Check for IMAP deduplication if UID is provided
+    // --- CRITICAL FIX: Early Identity Pass (Pre-Thread Creation) ---
+    // If we can identify the user early, we avoid creating a "ghost" conversation altogether.
+    const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/;
+    const phoneRegex = /(\+?\d{10,13})/;
+    const emailMatch = content.match(emailRegex);
+    const phoneMatch = content.match(phoneRegex);
+
+    if (emailMatch || phoneMatch) {
+      console.log(`[CONVERSATION] Identity detected early. Running pre-link...`);
+      try {
+        const identifier = emailMatch ? emailMatch[0].toLowerCase() : phoneMatch[0];
+        const type = emailMatch ? 'email' : 'phone';
+        const { masterUser, deletedConversationId } = await identityService.linkIdentity(user._id, identifier, type);
+        
+        if (masterUser) {
+          user = masterUser;
+          // Store deletedConversationId if it exists to help the caller notify the UI
+          metadata.deletedConversationId = deletedConversationId;
+        }
+      } catch (linkErr) {
+        console.error('[CONVERSATION] Early link failed:', linkErr.message);
+      }
+    }
+
+    // 1. Check for IMAP deduplication
     if (metadata.imapUid) {
       const existing = await Message.findOne({ 'metadata.imapUid': metadata.imapUid });
       if (existing) {
-        console.log(`IMAP: Skipping already stored message [UID: ${metadata.imapUid}]`);
         const conversation = await Conversation.findById(existing.conversationId);
         return { conversation, newMessage: existing, alreadyProcessed: true };
       }
     }
 
-    // 2. Find or create the ONE unified conversation for this user
+    // 2. Find or create the ONE unified conversation for the final (Master) user
     let conversation = await Conversation.findOneAndUpdate(
       { userId: user._id },
       { 
@@ -44,7 +67,6 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
       { upsert: true, new: true, runValidators: true }
     );
 
-    // Ensure status is open for agent attention
     if (conversation.status === 'resolved' || conversation.status === 'ai-handling') {
       conversation.status = 'open';
       await conversation.save();
@@ -61,7 +83,7 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
       metadata: metadata 
     });
 
-    // 4. Create Formal Notification for Dashboard (Instant)
+    // 4. Create Formal Notification
     try {
       await Notification.create({
         title: 'New Message Received',
@@ -74,8 +96,6 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
     } catch (notifyErr) {
       console.error("[NOTIFICATION] Failed to create alert:", notifyErr);
     }
-
-    console.log(`[CONVERSATION] Message saved (FAST) for user ${user.email || user.phone}. Ingestion complete.`);
 
     return { conversation, newMessage, user };
 
