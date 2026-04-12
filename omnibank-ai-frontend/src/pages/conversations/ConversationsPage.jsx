@@ -1,39 +1,37 @@
-import { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import ConversationList from './ConversationList';
 import ChatWindow from './ChatWindow';
 import LiveAiMonitor from './LiveAiMonitor';
 
 export default function ConversationsPage() {
-  const { tab } = useParams();
-  const location = useLocation();
-  const [view, setView] = useState('monitor'); // 'monitor' or 'chat'
-  const [activeConversationId, setActiveConversationId] = useState(null);
+  const { tab, convId } = useParams();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (location.state?.activeConversationId) {
-      setActiveConversationId(location.state.activeConversationId);
-      setView('chat');
-    }
-  }, [location.state]);
+  // Default to 'all' tab if none specified so the monitor is never empty on landing
+  const currentTab = tab || 'all';
+  
+  // Show monitor if no conversation is selected
+  const isMonitorView = !convId;
 
-  if (view === 'monitor') {
-    return <LiveAiMonitor onSelectCard={(id) => {
-      setActiveConversationId(id);
-      setView('chat');
-    }} activeTab={tab} />;
+  if (isMonitorView) {
+    return (
+      <LiveAiMonitor 
+        onSelectCard={(id) => navigate(`/conversations/${currentTab}/${id}`)} 
+        activeTab={currentTab} 
+      />
+    );
   }
 
   return (
     <div className="flex w-full h-full overflow-hidden bg-[#f4f7fb] relative animate-in fade-in duration-500">
       <ConversationList 
-        activeTab={tab} 
-        activeConversationId={activeConversationId} 
-        onSelect={(id) => setActiveConversationId(id)} 
+        activeTab={currentTab} 
+        activeConversationId={convId} 
+        onSelect={(id) => navigate(`/conversations/${currentTab}/${id}`)} 
       />
       <ChatWindow 
-        activeConversationId={activeConversationId} 
-        onBack={() => setView('monitor')}
+        activeConversationId={convId} 
+        onBack={() => navigate(`/conversations/${currentTab}`)}
       />
     </div>
   );

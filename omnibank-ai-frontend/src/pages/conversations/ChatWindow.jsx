@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../services/apiClient';
-import { CheckCircle2, AlertTriangle, MoreVertical, ArrowLeft, Link2, ShieldCheck, Paperclip } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, MoreVertical, ArrowLeft, Link2, ShieldCheck, Paperclip, Zap } from 'lucide-react';
 import MessageInput from './MessageInput';
 import EscalationModal from './EscalationModal';
 import useSocketStore from '../../store/socketStore';
@@ -60,10 +60,25 @@ export default function ChatWindow({ activeConversationId, onBack }) {
       }
     };
 
+    const handleConversationUpdated = (data) => {
+      if (data.conversationId === activeConversationId) {
+        setConversation(prev => ({
+          ...prev,
+          status: data.status,
+          sentiment: data.sentiment,
+          intent: data.intent,
+          aiSummary: data.aiSummary,
+          suggestedReplies: data.suggestedReplies
+        }));
+      }
+    };
+
     socket.on('new_message', handleNewMessage);
+    socket.on('conversation_updated', handleConversationUpdated);
 
     return () => {
       socket.off('new_message', handleNewMessage);
+      socket.off('conversation_updated', handleConversationUpdated);
       leaveRoom(activeConversationId);
     };
   }, [activeConversationId, socket, joinRoom, leaveRoom, scrollToBottom]);
@@ -215,19 +230,19 @@ export default function ChatWindow({ activeConversationId, onBack }) {
                           Agent: {msg.metadata.agentId.name}
                         </span>
                       )}
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${
-                        msg.channel === 'email' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
-                        msg.channel === 'whatsapp' ? 'text-green-600 bg-green-50 border-green-100' :
-                        msg.channel === 'telegram' ? 'text-sky-600 bg-sky-50 border-sky-100' :
-                        msg.channel === 'discord' ? 'text-indigo-600 bg-indigo-50 border-indigo-100' :
-                        'text-purple-600 bg-purple-50 border-purple-100'
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border shadow-sm ${
+                        msg.channel === 'email' ? 'text-blue-700 bg-blue-50 border-blue-200' : 
+                        msg.channel === 'whatsapp' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                        msg.channel === 'telegram' ? 'text-sky-700 bg-sky-50 border-sky-200' :
+                        msg.channel === 'discord' ? 'text-indigo-700 bg-indigo-50 border-indigo-200' :
+                        'text-purple-700 bg-purple-50 border-purple-200'
                       }`}>
                         via {msg.channel === 'email' ? 'Email' : msg.channel === 'whatsapp' ? 'WhatsApp' : msg.channel === 'telegram' ? 'Telegram' : msg.channel === 'discord' ? 'Discord' : 'Web Chat'}
                       </span>
                     </div>
 
-                    <div className={`rounded-[24px] px-6 py-4 text-[14px] shadow-sm leading-relaxed ${
-                      isUser ? 'bg-white border border-slate-100 rounded-tl-[6px] text-slate-800' : 'bg-gradient-to-br from-[#00C9A7] to-teal-600 text-white rounded-tr-[6px] shadow-md border border-[#00C9A7]/30'
+                    <div className={`rounded-[24px] px-6 py-4 text-[14px] shadow-md leading-relaxed ${
+                      isUser ? 'bg-white border border-slate-100 rounded-tl-[6px] text-slate-800' : 'bg-gradient-to-br from-[#00897B] to-[#00695C] text-white rounded-tr-[6px] border border-teal-700/30'
                     }`}>
                       {msg.metadata?.attachmentUrl && (
                         <div className="mb-3 mt-1">
@@ -265,6 +280,36 @@ export default function ChatWindow({ activeConversationId, onBack }) {
             <div ref={messagesEndRef} className="h-4" />
           </div>
         </div>
+
+        {/* Strategic AI Suggestions */}
+        {conversation.status === 'ai-processing' && (
+          <div className="px-8 mb-4 border-l-4 border-teal-500 bg-teal-50/30 py-2 animate-pulse">
+            <div className="flex items-center gap-2 text-teal-700 text-[10px] font-black uppercase tracking-tighter">
+              <Zap size={14} className="animate-bounce" />
+              Gemini is analyzing conversation...
+            </div>
+          </div>
+        )}
+
+        {conversation.suggestedReplies?.length > 0 && (
+          <div className="px-8 mb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-2 mb-2 text-primary/70 text-[10px] font-black uppercase tracking-tighter">
+              <Zap size={14} />
+              Strategic Suggestions
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {conversation.suggestedReplies.map((reply, i) => (
+                <button
+                  key={i}
+                  onClick={() => inputRef.current?.setText(reply)}
+                  className="bg-white/80 backdrop-blur-md border border-teal/20 text-teal-800 px-4 py-2.5 rounded-2xl text-[12px] font-bold shadow-sm hover:bg-teal hover:text-white hover:border-teal transition-all flex items-center gap-2 group"
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Input Area - Stable sticky block */}
         <div className="mt-auto bg-transparent pb-6 px-8 z-20">

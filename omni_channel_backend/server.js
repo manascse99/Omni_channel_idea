@@ -59,6 +59,10 @@ discordService.start();
 // Store services on app for access in routes
 app.set('discordService', discordService);
 
+// NEW: Global Registry for access in static services (e.g., conversationService)
+const globalRegistry = require('./src/utils/globalRegistry');
+globalRegistry.set('discordService', discordService);
+
 // Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

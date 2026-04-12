@@ -30,7 +30,7 @@ export default function AppRouter() {
         {/* Protected Routes */}
         <Route element={<AppLayout />}>
           <Route path="/dashboard/:tab?" element={<DashboardPage />} />
-          <Route path="/conversations/:tab?" element={<ConversationsPage />} />
+          <Route path="/conversations/:tab?/:convId?" element={<ConversationsPage />} />
           <Route path="/analytics/:tab?" element={<AnalyticsPage />} />
           <Route path="/teams/:tab?" element={<TeamsPage />} />
           <Route path="/settings/:tab?" element={<SettingsPage />} />

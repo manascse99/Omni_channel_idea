@@ -28,7 +28,7 @@ const conversationSchema = new mongoose.Schema({
   },
   sentiment: {
     type: String,
-    enum: ['positive', 'neutral', 'negative'],
+    enum: ['positive', 'neutral', 'negative', 'urgent'],
     default: 'neutral'
   },
   lastMessage: {
@@ -53,6 +53,17 @@ const conversationSchema = new mongoose.Schema({
   isRead: {
     type: Boolean,
     default: false
+  },
+  suggestedReplies: [{
+    type: String
+  }],
+  processingNotes: {
+    type: String,
+    default: null
+  },
+  escalationReason: {
+    type: String,
+    default: null
   }
 }, { timestamps: true });
 

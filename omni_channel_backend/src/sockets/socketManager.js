@@ -58,27 +58,27 @@ const socketManager = (io) => {
 
   return {
     // Helper to emit AI results from external services (Webhooks/Email)
-    emitAiResults: (conversation, newMessage, aiMessage) => {
-      if (!conversation || !newMessage) return; // Safety guard
+    emitAiResults: (conversation, aiMessage) => {
+      if (!conversation || !aiMessage) return;
 
       const conversationId = conversation._id.toString();
-      const aiContent = aiMessage?.content || ''; // Guard against undefined aiMessage
       
-      // Notify the specific chat room
+      // 1. Notify the specific chat room with the AI reply
       io.to(conversationId).emit('new_message', { 
         conversationId, 
-        message: newMessage, 
-        channel: newMessage.channel 
+        message: aiMessage, 
+        channel: aiMessage.channel 
       });
 
-      // Notify the dashboard
+      // 2. Notify the dashboard with updated metadata
       io.emit('conversation_updated', { 
         conversationId, 
         status: conversation.status, 
         sentiment: conversation.sentiment, 
         intent: conversation.intent,
-        aiSuggestion: aiContent,
-        lastMessage: newMessage.content?.substring(0, 100) || ''
+        aiSummary: conversation.aiSummary,
+        suggestedReplies: conversation.suggestedReplies || [],
+        lastMessage: aiMessage.content?.substring(0, 100) || ''
       });
     },
     // Simple helper for incoming messages without manual AI results (like Email/Webhooks)

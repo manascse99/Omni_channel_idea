@@ -45,20 +45,45 @@ export default function UserProfileSidebar({ user, onProfileUpdated }) {
           </div>
         </div>
 
-        <div>
-           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Connected Channels</label>
-           <div className="flex flex-wrap gap-2">
-             {user.channelHistory?.map(ch => (
-               <span key={ch} className="px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100 text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2">
-                 {ch === 'email' && <Mail size={12} className="text-blue-500" />}
-                 {ch === 'webchat' && <Globe size={12} className="text-purple-500" />}
-                 {ch === 'whatsapp' && <Phone size={12} className="text-green-500" />}
-                 {ch === 'discord' && <MessageSquare size={12} className="text-indigo-500" />}
-                 {ch}
-               </span>
-             ))}
-           </div>
-        </div>
+         <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Connected Channels</label>
+            <div className="flex flex-wrap gap-2">
+              {user.channelHistory?.map(ch => (
+                <span key={ch} className="px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100 text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2">
+                  {ch === 'email' && <Mail size={12} className="text-blue-500" />}
+                  {ch === 'webchat' && <Globe size={12} className="text-purple-500" />}
+                  {ch === 'whatsapp' && <Phone size={12} className="text-green-500" />}
+                  {ch === 'discord' && <MessageSquare size={12} className="text-indigo-500" />}
+                  {ch}
+                </span>
+              ))}
+            </div>
+         </div>
+
+         {/* Strategic Risk Profile */}
+         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3 flex items-center gap-2">
+              <ShieldCheck size={14} className="text-teal" /> 
+              Strategic Risk Profile
+            </label>
+            <div className="flex items-center justify-between">
+               <div className="flex flex-col">
+                  <span className={`text-[18px] font-black ${
+                    (user.riskScore || 0) > 70 ? 'text-rose-600' : (user.riskScore || 0) > 30 ? 'text-amber-600' : 'text-emerald-600'
+                  }`}>
+                    {user.riskScore || 0}
+                  </span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Current Score</span>
+               </div>
+               <div className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+                  (user.riskScore || 0) > 70 ? 'bg-rose-50 text-rose-600 border-rose-100' : 
+                  (user.riskScore || 0) > 30 ? 'bg-amber-50 text-amber-600 border-amber-100' : 
+                  'bg-emerald-50 text-emerald-600 border-emerald-100'
+               }`}>
+                  {(user.riskScore || 0) > 70 ? 'High Alert' : (user.riskScore || 0) > 30 ? 'Vigilance' : 'Healthy'}
+               </div>
+            </div>
+         </div>
 
         <div className="border-t border-gray-100 pt-6">
            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3 flex items-center gap-2">

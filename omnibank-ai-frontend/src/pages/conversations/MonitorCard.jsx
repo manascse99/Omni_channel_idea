@@ -5,9 +5,36 @@ export default function MonitorCard({ data, onTakeOver }) {
   const { name, status, waiting, intent, sentiment, confidence, avatar, channel } = data;
 
   const statusConfig = {
-    'AI HANDLING':     { gradient: 'from-[#34d399] to-[#0d9488]', solid: '#10B981', glow: 'shadow-[#0d9488]/20',     chipBg: 'has-glow',           chipText: 'text-[#0f766e] font-extrabold',       icon: Cpu,           border: 'border-[#ccfbf1]', btn: 'bg-gradient-to-r from-slate-800 to-slate-900 text-[#2dd4bf] shadow-slate-900/20 hover:text-[#5eead4]' },
-    'NEEDS ATTENTION': { gradient: 'from-[#00C9A7] to-[#047857]', solid: '#00C9A7', glow: 'shadow-[#00C9A7]/20',   chipBg: 'bg-[#ecfdf5]',       chipText: 'text-[#047857] font-extrabold',     icon: AlertCircle,   border: 'border-[#ccfbf1]', btn: 'bg-gradient-to-r from-[#00C9A7] to-[#047857] text-white shadow-[#00C9A7]/20 hover:from-[#34d399] hover:to-[#059669]' },
-    'ESCALATED':       { gradient: 'from-[#fb7185] to-[#ef4444]', solid: '#EF4444', glow: 'shadow-[#ef4444]/20',   chipBg: 'bg-[#fef2f2]',       chipText: 'text-[#b91c1c] font-extrabold',     icon: ShieldAlert,   border: 'border-[#fee2e2]', btn: 'bg-gradient-to-r from-[#f43f5e] to-[#dc2626] text-white shadow-[#ef4444]/20' },
+    'AI HANDLING':     { 
+      gradient: 'from-[#34d399] to-[#0d9488]', 
+      solid: '#10B981', 
+      glow: 'shadow-[#0d9488]/20',     
+      chipBg: 'bg-[#0f766e]/10',    
+      chipText: 'text-[#0f766e] font-extrabold',       
+      icon: Cpu,           
+      border: 'border-[#ccfbf1]', 
+      btn: 'bg-gradient-to-r from-slate-800 to-slate-900 text-[#2dd4bf] shadow-slate-900/20 hover:text-[#5eead4]' 
+    },
+    'NEEDS ATTENTION': { 
+      gradient: 'from-[#00C9A7] to-[#047857]', 
+      solid: '#00C9A7', 
+      glow: 'shadow-[#00C9A7]/20',   
+      chipBg: 'bg-[#ecfdf5]',       
+      chipText: 'text-[#047857] font-extrabold',     
+      icon: AlertCircle,   
+      border: 'border-[#ccfbf1]', 
+      btn: 'bg-gradient-to-r from-[#00C9A7] to-[#047857] text-white shadow-[#00C9A7]/20 hover:from-[#34d399] hover:to-[#059669]' 
+    },
+    'ESCALATED':       { 
+      gradient: 'from-[#00897B] to-[#004D40]', 
+      solid: '#00897B', 
+      glow: 'shadow-[#00897B]/20',   
+      chipBg: 'bg-rose-50',         
+      chipText: 'text-rose-600 font-extrabold',     
+      icon: ShieldAlert,   
+      border: 'border-teal-100',  
+      btn: 'bg-gradient-to-r from-[#00897B] to-[#004D40] text-white shadow-[#00897B]/10 hover:shadow-lg' 
+    },
   };
 
   const sentimentConfig = {
@@ -20,9 +47,8 @@ export default function MonitorCard({ data, onTakeOver }) {
   const sent = sentimentConfig[sentiment?.toLowerCase()] || sentimentConfig['neutral'];
   const StatusIcon = cfg.icon;
 
-  const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const initials = name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '??';
   
-  // Progress Bar Color (Gradient Logic)
   const barGradient = confidence > 80 ? 'from-[#34d399] to-[#0d9488]' : confidence > 50 ? 'from-[#00C9A7] to-[#059669]' : 'from-[#fb7185] to-[#ef4444]';
 
   const channelIcon = {
@@ -34,22 +60,13 @@ export default function MonitorCard({ data, onTakeOver }) {
 
   return (
     <div className="group relative z-10 hover:z-20">
-      
-      {/* Card Body */}
       <div className={`relative glass-card !rounded-[24px] border ${cfg.border} overflow-hidden shadow-sm hover:neo-shadow transition-all duration-200 flex flex-col hover:-translate-y-1.5`}>
-        
-        {/* Top Gradient Header Line instead of Left Strip */}
         <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${cfg.gradient} opacity-90`} />
 
         <div className="p-6 pt-7 flex flex-col gap-5 flex-1">
-          
-          {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              {/* Avatar with Super-Ellipse / Squircle look */}
-              <div 
-                className={`w-12 h-12 rounded-[18px] relative flex items-center justify-center shadow-inner border-2 border-white/80 overflow-visible bg-gradient-to-br ${cfg.gradient}`}
-              >
+              <div className={`w-12 h-12 rounded-[18px] relative flex items-center justify-center shadow-inner border-2 border-white/80 overflow-visible bg-gradient-to-br ${cfg.gradient}`}>
                 {avatar ? (
                   <img src={avatar} className="w-full h-full object-cover rounded-[16px]" alt="" />
                 ) : (
@@ -57,8 +74,6 @@ export default function MonitorCard({ data, onTakeOver }) {
                     {initials}
                   </div>
                 )}
-                
-                {/* Status Pulse */}
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-sm">
                   <div className="w-2.5 h-2.5 rounded-full relative">
                     <span className="animate-ping absolute inset-0 rounded-full opacity-75" style={{ backgroundColor: cfg.solid }}></span>
@@ -69,7 +84,7 @@ export default function MonitorCard({ data, onTakeOver }) {
 
               <div>
                 <h3 className="text-[16px] font-extrabold text-slate-900 tracking-tight leading-tight mb-1">{name}</h3>
-                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-slate-100/30 shadow-sm ${cfg.chipBg === 'has-glow' ? 'bg-gradient-to-r from-[#d1fae5] to-[#ccfbf1] border-[#99f6e4]/50' : cfg.chipBg} ${cfg.chipText} text-[9px] uppercase tracking-[0.1em]`}>
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-slate-100/30 shadow-sm ${cfg.chipBg} ${cfg.chipText} text-[9px] uppercase tracking-[0.1em]`}>
                   <StatusIcon size={12} strokeWidth={3} />
                   {status}
                 </div>
@@ -85,7 +100,6 @@ export default function MonitorCard({ data, onTakeOver }) {
             </div>
           </div>
 
-          {/* Core Insights Pill Row */}
           <div className="grid grid-cols-2 gap-3 mt-1 relative z-20">
             <div className="glass-card !bg-slate-50/50 !rounded-[20px] p-4 flex flex-col gap-1.5 border border-white/80 shadow-sm relative overflow-hidden group-hover:border-indigo-100 transition-colors">
               <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] z-10">Intent</span>
@@ -99,8 +113,43 @@ export default function MonitorCard({ data, onTakeOver }) {
               </div>
             </div>
           </div>
+          
+          <div className="bg-white/40 backdrop-blur-sm rounded-2xl p-4 border border-white flex flex-col gap-2 shadow-sm min-h-[90px]">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-teal/70">
+                    <Cpu size={12} strokeWidth={2.5} />
+                    <span className="text-[9px] font-black uppercase tracking-[0.1em]">AI Strategic Summary</span>
+                </div>
+                {data.processingNotes && (
+                   <span className="text-[9px] font-black text-amber-600/80 bg-amber-50 px-2 py-0.5 rounded uppercase tracking-tighter shadow-sm border border-amber-100 flex items-center gap-1">
+                      <Zap size={10} /> Insight
+                   </span>
+                )}
+             </div>
+             <p className="text-[12px] leading-relaxed text-slate-600 font-bold italic line-clamp-3">
+                {data.summary || "AI is analyzing this conversation..."}
+             </p>
+             {data.processingNotes && (
+                <p className="text-[10px] text-amber-700/70 font-semibold bg-amber-50/50 p-2 rounded-lg border border-amber-100/30 mt-1">
+                   {data.processingNotes}
+                </p>
+             )}
+          </div>
 
-          {/* AI Confidence Strip */}
+          {status === 'ESCALATED' && data.escalationReason && (
+             <div className="mt-2 px-4 py-3 bg-red-50/50 border border-red-100/50 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                <div className="flex items-start gap-2">
+                   <ShieldAlert size={14} className="text-red-500 shrink-0 mt-0.5" />
+                   <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-red-700/70 uppercase tracking-widest leading-none mb-1">Escalation Reason</span>
+                      <p className="text-[11px] font-bold text-red-800/90 leading-tight">
+                         {data.escalationReason}
+                      </p>
+                   </div>
+                </div>
+             </div>
+          )}
+
           <div className="space-y-2 mt-2">
             <div className="flex items-center justify-between px-1">
                <div className="flex items-center gap-1.5 text-slate-400">
@@ -119,11 +168,10 @@ export default function MonitorCard({ data, onTakeOver }) {
             </div>
           </div>
 
-          {/* Footer Action */}
           <div className="flex items-center justify-between pt-2">
              <div className="flex items-center gap-2 bg-white/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white shadow-sm">
                 {channelIcon}
-                <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">{channel || 'Web'}</span>
+                <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">{channel || 'Web'}</span>
              </div>
 
              <button 
@@ -139,4 +187,3 @@ export default function MonitorCard({ data, onTakeOver }) {
     </div>
   );
 }
-

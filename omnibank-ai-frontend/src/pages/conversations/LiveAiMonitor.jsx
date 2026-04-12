@@ -29,6 +29,10 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
           intent: c.intent || 'General',
           sentiment: c.sentiment || 'Neutral',
           confidence: c.aiConfidence || (c.status === 'ai-handling' ? 90 : c.status === 'escalated' ? 30 : 60),
+          summary: c.aiSummary || '',
+          escalationReason: c.escalationReason || '',
+          processingNotes: c.processingNotes || '',
+          suggestedReplies: c.suggestedReplies || [],
           avatar: null,
           channel: c.lastChannel === 'whatsapp' ? 'Direct' : 
                    c.lastChannel === 'email' ? 'Channels' : 
@@ -106,14 +110,24 @@ export default function LiveAiMonitor({ onSelectCard, activeTab }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
         {getFilteredMonitors().map(m => (
-          <div key={m.id} onClick={() => onSelectCard(m.id)} className="cursor-pointer">
-            <MonitorCard data={m} onTakeOver={() => onSelectCard(m.id)} />
+          <div key={m.id} className="cursor-pointer">
+            <MonitorCard 
+              data={m} 
+              onTakeOver={() => {
+                console.log('[MONITOR] Taking over conversation:', m.id);
+                if (typeof onSelectCard === 'function') {
+                  onSelectCard(m.id);
+                } else {
+                  console.warn('onSelectCard is not a function');
+                }
+              }} 
+            />
           </div>
         ))}
         {getFilteredMonitors().length === 0 && (
-          <div className="col-span-3 text-center py-20 text-gray-400 font-bold text-lg">
+          <div className="col-span-3 text-center py-20 bg-white/50 rounded-[32px] border-2 border-dashed border-slate-200 text-slate-400 font-bold text-lg">
             No conversations here yet. Waiting for incoming messages…
           </div>
         )}

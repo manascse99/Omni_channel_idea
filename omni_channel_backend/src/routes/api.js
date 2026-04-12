@@ -488,73 +488,9 @@ router.post('/conversations/:id/messages', upload.single('file'), async (req, re
       }
     });
 
-    // Handle Email Delivery
-    console.log(`[DEBUG] Checking email delivery for conversation ${conversation._id}. Channel: ${conversation.lastChannel}`);
-    if (conversation.lastChannel === 'email' && conversation.userId?.email) {
-      // Fetch latest user message for threading context
-      const lastUserMsg = await Message.findOne({
-        conversationId: conversation._id,
-        senderType: 'user'
-      }).sort({ timestamp: -1 });
-
-      console.log(`[DEBUG] Last user message found: ${!!lastUserMsg}. MessageId: ${lastUserMsg?.metadata?.messageId}`);
-
-      if (lastUserMsg && lastUserMsg.metadata?.messageId) {
-        console.log(`[EMAIL] Agent replying to ${conversation.userId.email} with Subject: ${lastUserMsg.metadata.emailSubject}`);
-        try {
-          await emailService.sendReply(
-            conversation.userId.email,
-            content,
-            lastUserMsg.metadata.emailSubject || 'Re: Message Received',
-            lastUserMsg.metadata.messageId
-          );
-        } catch (emailErr) {
-          console.error('[EMAIL] Agent reply failed:', emailErr);
-        }
-      } else {
-        console.warn(`[EMAIL] Cannot send reply: No messageId found in metadata for threading.`);
-      }
-    }
-
-    // Handle Telegram Delivery
-    if (conversation.lastChannel === 'telegram' && conversation.userId?.telegramChatId) {
-      const chatId = conversation.userId.telegramChatId;
-      const botToken = process.env.TELEGRAM_BOT_TOKEN;
-
-      console.log(`[TELEGRAM] Agent replying to chatId: ${chatId}`);
-      try {
-        await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-          chat_id: chatId,
-          text: content
-        });
-      } catch (tgErr) {
-        console.error('[TELEGRAM] Agent reply failed:', tgErr.response?.data || tgErr.message);
-      }
-    }
-
-    // Handle Discord Delivery
-    if (conversation.lastChannel === 'discord' && conversation.userId?.discordUserId) {
-      try {
-        // Fetch latest discord message for channelId
-        const lastDiscordMsg = await Message.findOne({
-          conversationId: conversation._id,
-          channel: 'discord',
-          senderType: 'user'
-        }).sort({ timestamp: -1 });
-
-        if (lastDiscordMsg && lastDiscordMsg.metadata?.channelId) {
-          const discordService = req.app.get('discordService');
-          if (discordService) {
-            console.log(`[DISCORD] Agent replying to channelId: ${lastDiscordMsg.metadata.channelId}`);
-            await discordService.sendDiscordMessage(lastDiscordMsg.metadata.channelId, content);
-          }
-        } else {
-          console.warn(`[DISCORD] Cannot send reply: No channelId found in message metadata.`);
-        }
-      } catch (discordErr) {
-        console.error('[DISCORD] Agent reply failed:', discordErr.message);
-      }
-    }
+    // PERFORM REAL-WORLD DELIVERY (Centralized)
+    const conversationService = require('../services/conversationService');
+    await conversationService.sendOutboundMessage(conversation, content);
 
     conversation.status = 'open';
     conversation.lastMessage = content.substring(0, 50);

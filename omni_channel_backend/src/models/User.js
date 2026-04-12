@@ -51,6 +51,10 @@ const userSchema = new mongoose.Schema({
   firstInteractionAt: {
     type: Date,
     default: Date.now
+  },
+  riskScore: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true });
 

@@ -1,8 +1,10 @@
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const Notification = require('../models/Notification');
+const axios = require('axios');
 const identityService = require('./identityService');
 const aiService = require('./aiService');
+const emailService = require('./emailService');
 
 /**
  * Handles saving incoming messages and updating the unified conversation thread.
@@ -106,65 +108,223 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
 }
 
 /**
- * Runs the time-consuming AI Analysis (Ollama) and updates conversation metrics.
+ * Runs the time-consuming Gemini AI Analysis and updates conversation metrics.
  * Designed to be run in the background.
  */
 async function applyAiAnalysis(conversationId, messageId, content, socketService = null) {
   try {
-    console.log(`[AI-BACKGROUND] Starting analysis for message ${messageId}...`);
+    console.log(`[AI-BACKGROUND] Starting Gemini analysis for message ${messageId}...`);
     
-    // Fetch recent conversation history for AI context
-    const recentMessages = await Message.find({ conversationId: conversationId })
-      .sort({ timestamp: 1 })
-      .limit(10);
+    // 1. Fetch Context: Message History, User Profile, and Conversation
+    const [conversation, recentMessages, user] = await Promise.all([
+      Conversation.findById(conversationId),
+      Message.find({ conversationId }).sort({ timestamp: 1 }).limit(10).lean(),
+      Conversation.findById(conversationId).populate('userId').then(c => c.userId)
+    ]);
 
-    const aiResult = await aiService.processMessage(content, recentMessages);
+    if (!conversation || !user) return;
 
-    // Update Conversation metadata with AI results (For Analytics/Monitor)
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) return;
+    // 2. Prepare Gemini Input Payload (Following PART 1 - INPUT FORMAT)
+    const geminiInput = {
+      customerMessage: content,
+      channel: conversation.lastChannel,
+      conversationHistory: recentMessages.map(m => ({
+        role: m.senderType === 'user' ? 'user' : m.senderType === 'agent' ? 'agent' : 'ai',
+        content: m.content,
+        timestamp: m.timestamp
+      })),
+      customerProfile: {
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        channelHistory: user.channelHistory,
+        tags: user.tags,
+        risk_score: user.riskScore || 0,
+        previous_summary: conversation.aiSummary
+      },
+      agentContext: {
+        assigned_agent: conversation.assignedTo,
+        assigned_team: conversation.assignedTeam
+      }
+    };
 
-    conversation.intent = aiResult.intent || 'general';
-    conversation.sentiment = aiResult.sentiment || 'neutral';
-    conversation.aiConfidence = aiResult.confidence || 80;
-    conversation.aiSummary = aiResult.summary || null;
-    await conversation.save();
+    // 3. Call Gemini
+    const aiResponse = await aiService.processMessageWithGemini(geminiInput);
+    const ai = aiResponse.data;
 
-    // -- AI AUTO-LINKING --
-    if (aiResult.extractedContacts) {
-      try {
-        if (aiResult.extractedContacts.email && aiResult.extractedContacts.email.includes('@')) {
-          const mergedUser = await identityService.linkIdentity(conversation.userId, aiResult.extractedContacts.email, 'email');
-          if (mergedUser) {
-            conversation.userId = mergedUser._id; // Update in memory if merged
-            console.log(`[AI-BACKGROUND] Extracted and auto-linked email: ${aiResult.extractedContacts.email}`);
-          }
-        }
-        if (aiResult.extractedContacts.phone && /\\d{7,}/.test(aiResult.extractedContacts.phone)) {
-          const mergedUser = await identityService.linkIdentity(conversation.userId, aiResult.extractedContacts.phone, 'phone');
-          if (mergedUser) {
-            conversation.userId = mergedUser._id;
-            console.log(`[AI-BACKGROUND] Extracted and auto-linked phone: ${aiResult.extractedContacts.phone}`);
-          }
-        }
-      } catch (linkErr) {
-        console.error('[AI-BACKGROUND] Failed to auto-link identity:', linkErr);
+    // 4. Update Conversation with AI results (Intent, Sentiment, Summary, Routing, Suggested Replies)
+    conversation.intent = ai.intent;
+    conversation.sentiment = ai.sentiment;
+    conversation.aiConfidence = ai.intent_confidence;
+    conversation.aiSummary = ai.conversation_summary;
+    
+    // Explicitly set array and mark modified to ensure Mongoose persists it
+    conversation.suggestedReplies = Array.isArray(ai.suggested_quick_replies) ? [...ai.suggested_quick_replies] : [];
+    conversation.markModified('suggestedReplies');
+
+    conversation.processingNotes = ai.processing_notes || null;
+    conversation.escalationReason = ai.escalation_reason || null;
+    
+    console.log(`[AI-DEBUG] Suggestions to save: ${JSON.stringify(conversation.suggestedReplies)}`);
+    
+    // Auto-routing if unassigned (Mapping Gemini teams to DB teams)
+    if (!conversation.assignedTeam && ai.team_routing?.length > 0) {
+      const Team = require('../models/Team');
+      const teamMapper = {
+        'loans_team': 'Sales Team',
+        'grievance_team': 'Fraud & Alerts',
+        'general_support': 'Customer Support',
+        'security_team': 'Fraud & Alerts'
+      };
+      
+      const targetTeamName = teamMapper[ai.team_routing[0]] || ai.team_routing[0].replace('_', ' ');
+      const team = await Team.findOne({ name: new RegExp(targetTeamName, 'i') });
+      if (team) {
+        conversation.assignedTeam = team._id;
+        console.log(`[AI-ROUTING] Routed to team: ${team.name}`);
       }
     }
 
-    console.log(`[AI-BACKGROUND] Analysis complete for message ${messageId}. Intent: ${conversation.intent}`);
-
-    // If socketService is provided, notify the dashboard of the updated metrics
-    if (socketService) {
-      const message = await Message.findById(messageId);
-      socketService.emitAiResults(conversation, message, {
-        content: aiResult?.reply || ''
-      });
+    // Handle AI-driven escalation
+    if (ai.should_escalate) {
+      conversation.status = 'escalated';
+    } else {
+      conversation.status = 'ai-handling';
     }
 
-    return aiResult;
+    await conversation.save();
+
+    // 5. Update User Risk Score
+    if (ai.risk_delta !== 0) {
+      const User = require('../models/User');
+      await User.findByIdAndUpdate(user._id, {
+        $inc: { riskScore: ai.risk_delta }
+      });
+      console.log(`[AI-BACKGROUND] Risk Score updated for ${user.email || user.phone}: Delta ${ai.risk_delta}`);
+    }
+
+    // 6. Handle Identity Extraction (TASK 6)
+    const identity = ai.extracted_identity;
+    if (identity && (identity.phone_number || identity.email)) {
+      try {
+        if (identity.email && identity.email.includes('@')) {
+          await identityService.linkIdentity(user._id, identity.email.toLowerCase(), 'email');
+        }
+        if (identity.phone_number && /^\+?\d{10,13}$/.test(identity.phone_number)) {
+          await identityService.linkIdentity(user._id, identity.phone_number, 'phone');
+        }
+      } catch (linkErr) {
+        console.error('[AI-BACKGROUND] Identity link failed:', linkErr.message);
+      }
+    }
+
+    // 7. Save AI Reply as a Message (Following PART 2 - STEP 7)
+    const aiMessage = await Message.create({
+      conversationId: conversation._id,
+      userId: user._id,
+      channel: conversation.lastChannel,
+      senderType: 'ai',
+      content: ai.reply,
+      isRead: false,
+      timestamp: new Date()
+    });
+
+    console.log(`[AI-BACKGROUND] Analysis complete. Intent: ${ai.intent}, Sentiment: ${ai.sentiment}`);
+
+    // 8. Push real-time update to dashboard
+    if (socketService) {
+      socketService.emitAiResults(conversation, aiMessage);
+    }
+
+    // 9. PERFORM REAL-WORLD DELIVERY (New Step)
+    await sendOutboundMessage(conversation, ai.reply);
+
+    return ai;
   } catch (error) {
-    console.error("[AI-BACKGROUND] Analysis failed:", error);
+    console.error("[AI-BACKGROUND] Gemini analysis failed:", error);
+  }
+}
+
+/**
+ * Centralized logic for sending outbound messages to customers via their original channel.
+ * Supporting Telegram, Email, and Discord.
+ */
+async function sendOutboundMessage(conversation, content, metadata = {}) {
+  try {
+    const channel = conversation.lastChannel;
+    const user = conversation.userId && conversation.userId._id ? conversation.userId : await require('../models/User').findById(conversation.userId);
+
+    if (!user) {
+      console.warn(`[OUTBOUND] Cannot deliver message to conversation ${conversation._id}: User not found.`);
+      return;
+    }
+
+    console.log(`[OUTBOUND] Delivering message to ${user.email || user.phone || 'User'} via ${channel}...`);
+
+    // --- TELEGRAM DELIVERY ---
+    if (channel === 'telegram' && user.telegramChatId) {
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      if (!botToken) {
+        console.error('[TELEGRAM] Bot token missing from env. Skipping delivery.');
+        return;
+      }
+      await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        chat_id: user.telegramChatId,
+        text: content
+      });
+      console.log(`[TELEGRAM] Message delivered to chatId ${user.telegramChatId}`);
+    } 
+
+    // --- EMAIL DELIVERY ---
+    else if (channel === 'email' && user.email) {
+      // Find latest user message for threading context
+      const lastUserMsg = await Message.findOne({
+        conversationId: conversation._id,
+        senderType: 'user'
+      }).sort({ timestamp: -1 });
+
+      if (lastUserMsg && lastUserMsg.metadata?.messageId) {
+        await emailService.sendReply(
+          user.email,
+          content,
+          lastUserMsg.metadata.emailSubject || 'Re: Message Received',
+          lastUserMsg.metadata.messageId
+        );
+        console.log(`[EMAIL] Message delivered to ${user.email}`);
+      } else {
+        console.warn(`[EMAIL] Delivery failed: No threading metadata found for conversation ${conversation._id}`);
+      }
+    }
+
+    // --- DISCORD DELIVERY ---
+    else if (channel === 'discord' && user.discordUserId) {
+      const lastDiscordMsg = await Message.findOne({
+        conversationId: conversation._id,
+        channel: 'discord',
+        senderType: 'user'
+      }).sort({ timestamp: -1 });
+
+      if (lastDiscordMsg && lastDiscordMsg.metadata?.channelId) {
+        // We use a global registry for discordService as it's hard to inject deep into static services
+        const globalRegistry = require('../utils/globalRegistry'); 
+        const discordService = globalRegistry.get('discordService');
+        if (discordService) {
+          await discordService.sendDiscordMessage(lastDiscordMsg.metadata.channelId, content);
+          console.log(`[DISCORD] Message delivered to channelId ${lastDiscordMsg.metadata.channelId}`);
+        } else {
+          console.error('[DISCORD] Delivery failed: discordService not initialized in global registry.');
+        }
+      } else {
+        console.warn(`[DISCORD] Delivery failed: No channelId found in metadata for conversation ${conversation._id}`);
+      }
+    }
+
+    else {
+      console.log(`[OUTBOUND] Channel '${channel}' does not support automated delivery yet or user metadata is missing.`);
+    }
+
+  } catch (error) {
+    console.error(`[OUTBOUND] Delivery failed for channel ${conversation.lastChannel}:`, error.message);
   }
 }
 
@@ -180,5 +340,6 @@ async function isDuplicateWhatsAppMessage(whatsappMsgId) {
 module.exports = {
   processIncomingMessage,
   applyAiAnalysis,
+  sendOutboundMessage,
   isDuplicateWhatsAppMessage
 };
