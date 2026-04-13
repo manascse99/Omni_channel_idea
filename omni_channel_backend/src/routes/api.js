@@ -656,27 +656,50 @@ router.post('/conversations/:id/escalate', async (req, res) => {
 
 // --- ANALYTICS APIs ---
 
+// Helper to get date match criteria
+const getDateMatch = (query) => {
+  const { days, start, end } = query;
+  let filter = {};
+
+  if (start && end) {
+    filter = { $gte: new Date(start), $lte: new Date(end) };
+  } else if (days) {
+    const d = parseInt(days);
+    filter = { $gte: new Date(Date.now() - d * 24 * 60 * 60 * 1000) };
+  } else {
+    // Default to last 30 days if nothing specified
+    filter = { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) };
+  }
+  return filter;
+};
+
 router.get('/analytics/overview', async (req, res) => {
   try {
-    const totalMessages = await Message.countDocuments();
-    const totalUsers = await User.countDocuments();
-    const conversations = await Conversation.find().limit(100);
+    const dateQuery = getDateMatch(req.query);
+    
+    // Core Counts with date filter
+    const totalMessages = await Message.countDocuments({ timestamp: dateQuery });
+    const totalUsers = await User.countDocuments({ createdAt: dateQuery });
+    
+    // Fetch conversations within the range for further calculation
+    const conversations = await Conversation.find({ updatedAt: dateQuery });
 
     // Calculate AI Resolution Rate
-    const totalConvos = await Conversation.countDocuments();
-    const resolvedConvos = await Conversation.countDocuments({ status: 'resolved' });
+    const totalConvos = conversations.length;
+    const resolvedConvos = conversations.filter(c => c.status === 'resolved').length;
     const aiResolvedRate = totalConvos > 0 ? Math.round((resolvedConvos / totalConvos) * 100) : 0;
 
     // Calculate Avg Sentiment
     const sentimentSum = conversations.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0);
-    const avgSentiment = conversations.length > 0 ? (sentimentSum / conversations.length).toFixed(1) : "0.0";
+    const avgSentiment = totalConvos > 0 ? (sentimentSum / totalConvos).toFixed(1) : "0.0";
 
-    // Calculate Sentiment Trend (Last 7 days vs previous 7 days)
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    // Calculate Sentiment Trend (Current range vs same duration before it)
+    const d = parseInt(req.query.days) || 30;
+    const currentRangeStart = new Date(Date.now() - d * 24 * 60 * 60 * 1000);
+    const previousRangeStart = new Date(Date.now() - 2 * d * 24 * 60 * 60 * 1000);
 
-    const recentConvos = await Conversation.find({ updatedAt: { $gte: sevenDaysAgo } });
-    const olderConvos = await Conversation.find({ updatedAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo } });
+    const recentConvos = conversations; // Already filtered by dateQuery
+    const olderConvos = await Conversation.find({ updatedAt: { $gte: previousRangeStart, $lt: currentRangeStart } });
 
     const recentScore = recentConvos.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0) / (recentConvos.length || 1);
     const olderScore = olderConvos.reduce((acc, c) => acc + (c.sentiment === 'positive' ? 5 : c.sentiment === 'neutral' ? 3 : 1), 0) / (olderConvos.length || 1);
@@ -695,19 +718,15 @@ router.get('/analytics/overview', async (req, res) => {
     // NPS Calculation
     const promoters = conversations.filter(c => c.sentiment === 'positive').length;
     const detractors = conversations.filter(c => c.sentiment === 'negative').length;
-    const nps = conversations.length > 0 ? Math.round(((promoters - detractors) / conversations.length) * 100) : 0;
+    const nps = totalConvos > 0 ? Math.round(((promoters - detractors) / totalConvos) * 100) : 0;
 
     // Avg Confidence calculation
     const avgConfidenceResult = await Conversation.aggregate([
+      { $match: { updatedAt: dateQuery } },
       { $group: { _id: null, avgConf: { $avg: "$aiConfidence" } } }
     ]);
     const modelConfidenceNum = avgConfidenceResult.length > 0 ? avgConfidenceResult[0].avgConf : 0;
     const modelConfidence = `${modelConfidenceNum.toFixed(1)}%`;
-
-    // Messages per second (Last 24h)
-    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const msgsLast24h = await Message.countDocuments({ timestamp: { $gte: last24h } });
-    const avgMessagesPerSec = (msgsLast24h / 86400).toFixed(3);
 
     res.json({
       totalMessages,
@@ -722,9 +741,8 @@ router.get('/analytics/overview', async (req, res) => {
       },
       aiMetrics: {
         modelConfidence,
-        intentAccuracy: modelConfidence, // Using confidence as a proxy for accuracy since we don't have human validation data yet
-        autoResolveRate: `${aiResolvedRate}%`,
-        avgMessagesPerSec
+        intentAccuracy: modelConfidence,
+        autoResolveRate: `${aiResolvedRate}%`
       }
     });
   } catch (err) {
@@ -734,18 +752,23 @@ router.get('/analytics/overview', async (req, res) => {
 
 router.get('/analytics/charts', async (req, res) => {
   try {
+    const dateQuery = getDateMatch(req.query);
+
     // Channel Distribution
     const channelData = await Conversation.aggregate([
+      { $match: { updatedAt: dateQuery } },
       { $group: { _id: "$lastChannel", count: { $sum: 1 } } }
     ]);
 
     // Intent Breakdown
     const intentData = await Conversation.aggregate([
+      { $match: { updatedAt: dateQuery } },
       { $group: { _id: "$intent", count: { $sum: 1 } } }
     ]);
 
     // Sentiment Distribution
     const sentimentData = await Conversation.aggregate([
+      { $match: { updatedAt: dateQuery } },
       { $group: { _id: "$sentiment", count: { $sum: 1 } } }
     ]);
 

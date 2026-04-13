@@ -2,14 +2,19 @@ import { useState, useEffect } from 'react';
 import api from '../../services/apiClient';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function VolumeChart() {
+export default function VolumeChart({ days, customRange }) {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    api.get('/analytics/charts')
+    let url = `/analytics/charts?days=${days || 30}`;
+    if (days === 'custom' && customRange?.start && customRange?.end) {
+      url = `/analytics/charts?start=${customRange.start}&end=${customRange.end}`;
+    }
+
+    api.get(url)
       .then(res => setData(res.data.volume))
       .catch(console.error);
-  }, []);
+  }, [days, customRange]);
 
   return (
     <div className="w-full flex-1 flex flex-col min-h-[300px]">

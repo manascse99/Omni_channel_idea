@@ -2,15 +2,20 @@ import { useState, useEffect } from 'react';
 import api from '../../services/apiClient';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
-export default function ChannelDonut() {
+export default function ChannelDonut({ days, customRange }) {
   const [data, setData] = useState([]);
   const COLORS = ['#0F2F55', '#00CCA3', '#D9873E', '#6366f1'];
 
   useEffect(() => {
-    api.get('/analytics/charts')
+    let url = `/analytics/charts?days=${days || 30}`;
+    if (days === 'custom' && customRange?.start && customRange?.end) {
+      url = `/analytics/charts?start=${customRange.start}&end=${customRange.end}`;
+    }
+
+    api.get(url)
       .then(res => setData(res.data.channels))
       .catch(console.error);
-  }, []);
+  }, [days, customRange]);
 
   return (
     <div className="h-full flex flex-col">

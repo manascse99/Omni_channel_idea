@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/apiClient';
 
-export default function IntentBreakdown() {
+export default function IntentBreakdown({ days, customRange }) {
   const [intents, setIntents] = useState([]);
 
   useEffect(() => {
-    api.get('/analytics/charts')
+    let url = `/analytics/charts?days=${days || 30}`;
+    if (days === 'custom' && customRange?.start && customRange?.end) {
+      url = `/analytics/charts?start=${customRange.start}&end=${customRange.end}`;
+    }
+
+    api.get(url)
       .then(res => setIntents(res.data.intents))
       .catch(console.error);
-  }, []);
+  }, [days, customRange]);
 
   const total = intents.reduce((acc, curr) => acc + (curr.value || 0), 0);
 

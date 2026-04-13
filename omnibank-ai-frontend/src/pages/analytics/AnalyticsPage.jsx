@@ -11,6 +11,8 @@ import SentimentAnalysis from './SentimentAnalysis';
 export default function AnalyticsPage() {
   const { tab } = useParams();
   const activeTab = tab ? tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ') : 'Overview';
+  const [days, setDays] = useState(30); // Default to Last 30 Days
+  const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [stats, setStats] = useState({ 
     totalMessages: 0, 
     totalUsers: 0,
@@ -27,16 +29,21 @@ export default function AnalyticsPage() {
   });
 
   useEffect(() => {
-    api.get('/analytics/overview')
+    let url = `/analytics/overview?days=${days}`;
+    if (days === 'custom' && customRange.start && customRange.end) {
+      url = `/analytics/overview?start=${customRange.start}&end=${customRange.end}`;
+    }
+    
+    api.get(url)
       .then(res => setStats(res.data))
       .catch(console.error);
-  }, []);
+  }, [days, customRange]);
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto h-full flex flex-col overflow-y-auto">
       
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div>
            <h1 className="text-[28px] font-extrabold text-primary tracking-tight leading-none mb-2">
              {activeTab === 'Overview' ? 'Sentiment & Intent Analytics' : `${activeTab} Analytics`}
@@ -45,12 +52,45 @@ export default function AnalyticsPage() {
              {activeTab === 'AI Metrics' ? 'Advanced AI performance and confidence reporting.' : 'Real-time intelligence dashboard for banking interactions.'}
            </p>
         </div>
-        <div className="flex items-center gap-3">
-           <button className="text-[12px] font-bold text-gray-600 bg-white border border-gray-200 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors">Last 7 Days</button>
-           <button className="text-[12px] font-bold text-white bg-primary px-4 py-2.5 rounded-lg shadow-sm border border-primary">Last 30 Days</button>
-           <button className="text-[12px] font-bold text-gray-600 bg-white border border-gray-200 px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-gray-50 transition-colors">
-              <Calendar size={14} /> Custom Range
-           </button>
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setDays(7)}
+              className={`text-[12px] font-bold ${days === 7 ? 'text-white bg-primary border-primary shadow-indigo-100/50 shadow-lg' : 'text-gray-600 bg-white border-gray-200 hover:bg-gray-50'} border px-4 py-2.5 rounded-lg transition-all duration-300`}
+            >
+              Last 7 Days
+            </button>
+            <button 
+              onClick={() => setDays(30)}
+              className={`text-[12px] font-bold ${days === 30 ? 'text-white bg-primary border-primary shadow-indigo-100/50 shadow-lg' : 'text-gray-600 bg-white border-gray-200 hover:bg-gray-50'} border px-4 py-2.5 rounded-lg transition-all duration-300`}
+            >
+              Last 30 Days
+            </button>
+            <button 
+              onClick={() => setDays('custom')}
+              className={`text-[12px] font-bold ${days === 'custom' ? 'border-[#2563eb] text-[#2563eb] bg-blue-50/50' : 'text-gray-600 bg-white border-gray-200 hover:bg-gray-50'} border-2 px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300`}
+            >
+                <Calendar size={14} /> Custom Range
+            </button>
+          </div>
+          
+          {days === 'custom' && (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-300">
+               <input 
+                 type="date" 
+                 className="text-[11px] font-bold border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                 value={customRange.start}
+                 onChange={(e) => setCustomRange({...customRange, start: e.target.value})}
+               />
+               <span className="text-gray-400 font-bold text-xs">—</span>
+               <input 
+                 type="date" 
+                 className="text-[11px] font-bold border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                 value={customRange.end}
+                 onChange={(e) => setCustomRange({...customRange, end: e.target.value})}
+               />
+            </div>
+          )}
         </div>
       </div>
 
@@ -129,20 +169,20 @@ export default function AnalyticsPage() {
           {/* Row 2: Charts */}
           <div className="grid grid-cols-3 gap-6 mb-6">
             <div className="col-span-2 bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col">
-               <VolumeChart />
+               <VolumeChart days={days} customRange={customRange} />
             </div>
             <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col">
-               <ChannelDonut />
+               <ChannelDonut days={days} customRange={customRange} />
             </div>
           </div>
 
           {/* Row 3: Intent Breakdown & Sentiment Analysis */}
           <div className="grid grid-cols-2 gap-6 mb-6">
             <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col">
-               <IntentBreakdown />
+               <IntentBreakdown days={days} customRange={customRange} />
             </div>
             <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 flex flex-col">
-               <SentimentAnalysis />
+               <SentimentAnalysis days={days} customRange={customRange} />
             </div>
           </div>
         </>
@@ -151,7 +191,7 @@ export default function AnalyticsPage() {
       {activeTab === 'Channels' && (
         <div className="grid grid-cols-2 gap-6 mb-6">
           <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100">
-            <ChannelDonut />
+            <ChannelDonut days={days} customRange={customRange} />
           </div>
           <div className="bg-white rounded-[16px] p-6 shadow-sm border border-gray-100 p-8 flex items-center justify-center">
             <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Channel Performance Heatmap Coming Soon</p>

@@ -3,19 +3,27 @@ import api from '../../services/apiClient';
 import { BarChart, Bar, XAxis, ResponsiveContainer, Cell, Tooltip } from 'recharts';
 import { Sparkles } from 'lucide-react';
 
-export default function SentimentAnalysis() {
+export default function SentimentAnalysis({ days, customRange }) {
   const [stats, setStats] = useState({ nps: '0.0', sentimentTrend: '0%' });
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    api.get('/analytics/overview')
+    let overviewUrl = `/analytics/overview?days=${days || 30}`;
+    let chartsUrl = `/analytics/charts?days=${days || 30}`;
+
+    if (days === 'custom' && customRange?.start && customRange?.end) {
+      overviewUrl = `/analytics/overview?start=${customRange.start}&end=${customRange.end}`;
+      chartsUrl = `/analytics/charts?start=${customRange.start}&end=${customRange.end}`;
+    }
+
+    api.get(overviewUrl)
       .then(res => setStats(res.data))
       .catch(console.error);
     
-    api.get('/analytics/charts')
+    api.get(chartsUrl)
       .then(res => setData(res.data.sentiments))
       .catch(console.error);
-  }, []);
+  }, [days, customRange]);
 
   const COLORS = {
     'Positive': '#00CCA3',
