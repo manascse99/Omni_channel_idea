@@ -148,6 +148,7 @@ OUTPUT FORMAT — RETURN EXACTLY THIS JSON STRUCTURE:
     "account_number": null
   },
   "risk_delta": 0,
+  "risk_reason": "Provide reason for risk delta if non-zero, else empty string. Example: 'Multiple grievances detected'",
   "conversation_summary": "Customer Rajesh Kumar is inquiring about a personal loan of ₹5,00,000. AI has asked for income and tenure details. No resolution yet.",
   "suggested_quick_replies": ["Check my eligibility", "What documents do I need?", "Talk to an agent"],
   "processing_notes": "Optional internal note for agents — e.g. 'Customer seems frustrated, recommend empathetic tone'"
@@ -201,7 +202,7 @@ async function processMessageWithGemini({
     const required = [
       "intent", "intent_confidence", "sentiment", "sentiment_score",
       "reply", "team_routing", "should_escalate", "escalation_reason",
-      "extracted_identity", "risk_delta", "conversation_summary",
+      "extracted_identity", "risk_delta", "risk_reason", "conversation_summary",
       "suggested_quick_replies"
     ];
 

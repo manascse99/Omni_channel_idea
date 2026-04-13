@@ -465,7 +465,8 @@ router.post('/conversations/:id/messages', upload.single('file'), async (req, re
     const conversation = await Conversation.findById(req.params.id).populate('userId');
     if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
 
-    const { content, agentId } = req.body;
+    const { content, agentId, isInternal: isInternalRaw } = req.body;
+    const isInternal = isInternalRaw === 'true' || isInternalRaw === true;
     let attachmentUrl = null;
     let fileName = null;
 
@@ -481,6 +482,7 @@ router.post('/conversations/:id/messages', upload.single('file'), async (req, re
       senderType: 'agent',
       content: content || 'sent an attachment',
       isRead: true,
+      isInternal: isInternal,
       metadata: {
         agentId: agentId || req.agentId,
         attachmentUrl: attachmentUrl,
@@ -488,9 +490,11 @@ router.post('/conversations/:id/messages', upload.single('file'), async (req, re
       }
     });
 
-    // PERFORM REAL-WORLD DELIVERY (Centralized)
-    const conversationService = require('../services/conversationService');
-    await conversationService.sendOutboundMessage(conversation, content);
+    // PERFORM REAL-WORLD DELIVERY (Only if NOT internal)
+    if (!isInternal) {
+      const conversationService = require('../services/conversationService');
+      await conversationService.sendOutboundMessage(conversation, content);
+    }
 
     conversation.status = 'open';
     conversation.lastMessage = content.substring(0, 50);
@@ -503,6 +507,44 @@ router.post('/conversations/:id/messages', upload.single('file'), async (req, re
     }
 
     res.json({ message: newMessage });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/conversations/:id/handoff', authenticateAgent, async (req, res) => {
+  try {
+    const { targetAgentId, note } = req.body;
+    const conversation = await Conversation.findById(req.params.id);
+    if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+
+    const targetAgent = await Agent.findById(targetAgentId);
+    if (!targetAgent) return res.status(404).json({ error: 'Target agent not found' });
+
+    // 1. Update assignment
+    conversation.assignedTo = targetAgentId;
+    conversation.status = 'open';
+    await conversation.save();
+
+    // 2. Clear previous assignee from UI if needed via socket
+    if (req.socketService) {
+      req.socketService.emitHandoff(conversation._id, targetAgent);
+    }
+
+    // 3. Create Internal Note for the handoff if note provided
+    if (note) {
+      await Message.create({
+        conversationId: conversation._id,
+        userId: conversation.userId,
+        channel: conversation.lastChannel || 'webchat',
+        senderType: 'agent',
+        content: `Handoff Note: ${note}`,
+        isInternal: true,
+        metadata: { agentId: req.agentId }
+      });
+    }
+
+    res.json({ success: true, conversation });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -846,6 +888,15 @@ router.get('/teams', async (req, res) => {
     });
 
     res.json({ teams: teamsWithStats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/agents', authenticateAgent, async (req, res) => {
+  try {
+    const agents = await Agent.find({}, 'name email role status teamId');
+    res.json({ agents });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -194,13 +194,32 @@ async function applyAiAnalysis(conversationId, messageId, content, socketService
 
     await conversation.save();
 
-    // 5. Update User Risk Score
+    // 5. Update User Risk Score with history and capping
     if (ai.risk_delta !== 0) {
       const User = require('../models/User');
-      await User.findByIdAndUpdate(user._id, {
-        $inc: { riskScore: ai.risk_delta }
-      });
-      console.log(`[AI-BACKGROUND] Risk Score updated for ${user.email || user.phone}: Delta ${ai.risk_delta}`);
+      const currentUser = await User.findById(user._id);
+      if (currentUser) {
+        let newScore = (currentUser.riskScore || 0) + ai.risk_delta;
+        
+        // Cap between 0 and 100
+        newScore = Math.max(0, Math.min(100, newScore));
+        
+        currentUser.riskScore = newScore;
+        currentUser.riskHistory.push({
+          score: newScore,
+          delta: ai.risk_delta,
+          reason: ai.risk_reason || "AI analysis update",
+          timestamp: new Date()
+        });
+        
+        // Keep only last 20 history entries to prevent document bloating
+        if (currentUser.riskHistory.length > 20) {
+          currentUser.riskHistory.shift();
+        }
+        
+        await currentUser.save();
+        console.log(`[AI-BACKGROUND] Risk Score updated for ${user.email || user.phone}: ${newScore} (Delta: ${ai.risk_delta})`);
+      }
     }
 
     // 6. Handle Identity Extraction (TASK 6)
@@ -252,7 +271,12 @@ async function applyAiAnalysis(conversationId, messageId, content, socketService
 async function sendOutboundMessage(conversation, content, metadata = {}) {
   try {
     const channel = conversation.lastChannel;
-    const user = conversation.userId && conversation.userId._id ? conversation.userId : await require('../models/User').findById(conversation.userId);
+    let user = conversation.userId && conversation.userId._id ? conversation.userId : null;
+    
+    if (!user) {
+      const User = require('../models/User');
+      user = await User.findById(conversation.userId);
+    }
 
     if (!user) {
       console.warn(`[OUTBOUND] Cannot deliver message to conversation ${conversation._id}: User not found.`);
@@ -262,7 +286,11 @@ async function sendOutboundMessage(conversation, content, metadata = {}) {
     console.log(`[OUTBOUND] Delivering message to ${user.email || user.phone || 'User'} via ${channel}...`);
 
     // --- TELEGRAM DELIVERY ---
-    if (channel === 'telegram' && user.telegramChatId) {
+    if (channel === 'telegram') {
+      if (!user.telegramChatId) {
+        console.error(`[TELEGRAM] Delivery failed: No telegramChatId for user ${user._id}`);
+        return;
+      }
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
       if (!botToken) {
         console.error('[TELEGRAM] Bot token missing from env. Skipping delivery.');
@@ -272,55 +300,71 @@ async function sendOutboundMessage(conversation, content, metadata = {}) {
         chat_id: user.telegramChatId,
         text: content
       });
-      console.log(`[TELEGRAM] Message delivered to chatId ${user.telegramChatId}`);
+      console.log(`[TELEGRAM] Message successfully delivered to chatId ${user.telegramChatId}`);
     } 
 
     // --- EMAIL DELIVERY ---
     else if (channel === 'email' && user.email) {
-      // Find latest user message for threading context
+      // 1. Try to find threading context
       const lastUserMsg = await Message.findOne({
         conversationId: conversation._id,
         senderType: 'user'
       }).sort({ timestamp: -1 });
 
-      if (lastUserMsg && lastUserMsg.metadata?.messageId) {
-        await emailService.sendReply(
-          user.email,
-          content,
-          lastUserMsg.metadata.emailSubject || 'Re: Message Received',
-          lastUserMsg.metadata.messageId
-        );
-        console.log(`[EMAIL] Message delivered to ${user.email}`);
+      const subject = lastUserMsg?.metadata?.emailSubject || 'Re: Message Received from OmniBank';
+      const messageId = lastUserMsg?.metadata?.messageId;
+
+      if (messageId) {
+        // Option A: Send as a Threaded Reply
+        await emailService.sendReply(user.email, content, subject, messageId);
+        console.log(`[EMAIL] Threaded reply delivered to ${user.email}`);
       } else {
-        console.warn(`[EMAIL] Delivery failed: No threading metadata found for conversation ${conversation._id}`);
+        // Option B: Fallback - Send as a standard Email (Better than skipping!)
+        console.log(`[EMAIL] No threading metadata found. Falling back to standard send for ${user.email}.`);
+        await emailService.transporter.sendMail({
+          from: `"OmniBank AI" <${process.env.GMAIL_USER}>`,
+          to: user.email,
+          subject: subject.startsWith('Re:') ? subject : `Project OmniBank Update: ${subject}`,
+          text: content
+        });
+        console.log(`[EMAIL] Standard email delivered to ${user.email}`);
       }
     }
 
     // --- DISCORD DELIVERY ---
-    else if (channel === 'discord' && user.discordUserId) {
+    else if (channel === 'discord') {
+      if (!user.discordUserId) {
+        console.error(`[DISCORD] Delivery failed: No discordUserId for user ${user._id}`);
+        return;
+      }
       const lastDiscordMsg = await Message.findOne({
         conversationId: conversation._id,
         channel: 'discord',
         senderType: 'user'
       }).sort({ timestamp: -1 });
 
-      if (lastDiscordMsg && lastDiscordMsg.metadata?.channelId) {
-        // We use a global registry for discordService as it's hard to inject deep into static services
+      const targetChannelId = lastDiscordMsg?.metadata?.channelId;
+
+      if (targetChannelId) {
         const globalRegistry = require('../utils/globalRegistry'); 
         const discordService = globalRegistry.get('discordService');
         if (discordService) {
-          await discordService.sendDiscordMessage(lastDiscordMsg.metadata.channelId, content);
-          console.log(`[DISCORD] Message delivered to channelId ${lastDiscordMsg.metadata.channelId}`);
+          await discordService.sendDiscordMessage(targetChannelId, content);
+          console.log(`[DISCORD] Message delivered to channelId ${targetChannelId}`);
         } else {
-          console.error('[DISCORD] Delivery failed: discordService not initialized in global registry.');
+          console.error('[DISCORD] Delivery failed: discordService not available in registry.');
         }
       } else {
-        console.warn(`[DISCORD] Delivery failed: No channelId found in metadata for conversation ${conversation._id}`);
+        console.warn(`[DISCORD] Delivery failed: No channelId found for conversation ${conversation._id}`);
       }
     }
 
+    else if (channel === 'whatsapp') {
+      console.log(`[WHATSAPP] Outbound skipped: WhatsApp persists in DB but automated delivery is disabled (Meta Apps not in use).`);
+    }
+
     else {
-      console.log(`[OUTBOUND] Channel '${channel}' does not support automated delivery yet or user metadata is missing.`);
+      console.log(`[OUTBOUND] Channel '${channel}' is recognized but delivery logic is missing or identifiers are undefined.`);
     }
 
   } catch (error) {

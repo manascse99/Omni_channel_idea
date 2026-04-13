@@ -60,29 +60,73 @@ export default function UserProfileSidebar({ user, onProfileUpdated }) {
             </div>
          </div>
 
-         {/* Strategic Risk Profile */}
-         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3 flex items-center gap-2">
-              <ShieldCheck size={14} className="text-teal" /> 
-              Strategic Risk Profile
-            </label>
-            <div className="flex items-center justify-between">
-               <div className="flex flex-col">
-                  <span className={`text-[18px] font-black ${
-                    (user.riskScore || 0) > 70 ? 'text-rose-600' : (user.riskScore || 0) > 30 ? 'text-amber-600' : 'text-emerald-600'
-                  }`}>
-                    {user.riskScore || 0}
-                  </span>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Current Score</span>
-               </div>
-               <div className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
-                  (user.riskScore || 0) > 70 ? 'bg-rose-50 text-rose-600 border-rose-100' : 
-                  (user.riskScore || 0) > 30 ? 'bg-amber-50 text-amber-600 border-amber-100' : 
-                  'bg-emerald-50 text-emerald-600 border-emerald-100'
-               }`}>
-                  {(user.riskScore || 0) > 70 ? 'High Alert' : (user.riskScore || 0) > 30 ? 'Vigilance' : 'Healthy'}
-               </div>
+         {/* Strategic Risk Profile - Minimalist & Clean */}
+         <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100">
+            <div className="flex items-center justify-between mb-8">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <ShieldCheck size={14} className="text-emerald-500" /> 
+                Risk Intelligence
+              </label>
+              <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                (user.riskScore || 0) > 70 ? 'bg-rose-100 text-rose-700' : (user.riskScore || 0) > 30 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+              }`}>
+                {(user.riskScore || 0) > 70 ? 'High Risk' : (user.riskScore || 0) > 30 ? 'Medium' : 'Low Risk'}
+              </div>
             </div>
+            
+            {/* SVG Minimalist Gauge */}
+            <div className="relative flex justify-center">
+              <svg width="120" height="70" viewBox="0 0 120 70">
+                {/* Simplified Path */}
+                <path 
+                  d="M 15 60 A 45 45 0 0 1 105 60" 
+                  fill="none" 
+                  stroke="#e2e8f0" 
+                  strokeWidth="8" 
+                  strokeLinecap="round" 
+                />
+                <path 
+                  d="M 15 60 A 45 45 0 0 1 105 60" 
+                  fill="none" 
+                  stroke={(user.riskScore || 0) > 70 ? '#f43f5e' : (user.riskScore || 0) > 30 ? '#f59e0b' : '#10b981'} 
+                  strokeWidth="8" 
+                  strokeLinecap="round" 
+                  strokeDasharray={`${(user.riskScore || 0) * 1.41}, 141`} 
+                  className="transition-all duration-1000 ease-in-out"
+                />
+                {/* Simple Needle */}
+                <g transform={`rotate(${-90 + (user.riskScore || 0) * 1.8}, 60, 60)`} className="transition-all duration-700">
+                   <line x1="60" y1="60" x2="60" y2="25" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round" />
+                   <circle cx="60" cy="60" r="3" fill="#1e293b" />
+                </g>
+              </svg>
+              
+              {/* Clean Score Center */}
+              <div className="absolute top-[35px] flex flex-col items-center">
+                <span className={`text-[28px] font-black tracking-tighter leading-none ${(user.riskScore || 0) > 70 ? 'text-rose-600' : (user.riskScore || 0) > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {user.riskScore || 0}
+                </span>
+              </div>
+            </div>
+
+            {/* Risk Signal Timeline - Compact */}
+            {user.riskHistory && user.riskHistory.length > 0 && (
+              <div className="mt-8 pt-4 border-t border-slate-200/60">
+                <div className="space-y-4 max-h-[140px] overflow-y-auto pr-2 custom-scrollbar">
+                  {user.riskHistory.slice().reverse().map((h, i) => (
+                    <div key={i} className="flex gap-3 items-start opacity-80 hover:opacity-100 transition-opacity">
+                      <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${h.delta > 0 ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                      <div className="flex-1 min-w-0">
+                         <p className="text-[11px] font-bold text-slate-700 leading-tight mb-0.5">{h.reason}</p>
+                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                            {h.delta > 0 ? `+${h.delta}` : h.delta} Points • {new Date(h.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                         </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
          </div>
 
         <div className="border-t border-gray-100 pt-6">

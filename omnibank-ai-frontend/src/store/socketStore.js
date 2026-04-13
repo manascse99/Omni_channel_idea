@@ -44,19 +44,19 @@ const useSocketStore = create((set, get) => ({
   },
 
   // Helper to join/leave rooms
-  joinRoom: (roomId) => {
+  joinRoom: (roomId, agent) => {
     const { socket } = get();
     if (socket) {
       console.log('SocketStore: Joining room:', roomId);
-      socket.emit('join_conversation', { conversationId: roomId });
+      socket.emit('join_conversation', { conversationId: roomId, agent });
     }
   },
 
-  leaveRoom: (roomId) => {
+  leaveRoom: (roomId, agent) => {
     const { socket } = get();
     if (socket) {
       console.log('SocketStore: Leaving room:', roomId);
-      socket.emit('leave_conversation', { conversationId: roomId });
+      socket.emit('leave_conversation', { conversationId: roomId, agent });
     }
   }
 }));

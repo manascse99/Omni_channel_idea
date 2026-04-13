@@ -29,6 +29,10 @@ const messageSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isInternal: {
+    type: Boolean,
+    default: false
+  },
   timestamp: {
     type: Date,
     default: Date.now

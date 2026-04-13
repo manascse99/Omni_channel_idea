@@ -4,6 +4,7 @@ import { CheckCircle2, AlertTriangle, MoreVertical, ArrowLeft, Link2, ShieldChec
 import MessageInput from './MessageInput';
 import EscalationModal from './EscalationModal';
 import useSocketStore from '../../store/socketStore';
+import useAuthStore from '../../store/authStore';
 import UserProfileSidebar from './UserProfileSidebar';
 
 export default function ChatWindow({ activeConversationId, onBack }) {
@@ -12,9 +13,15 @@ export default function ChatWindow({ activeConversationId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [isEscalating, setIsEscalating] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Collaboration States
+  const [typingAgents, setTypingAgents] = useState({}); // {agentId: agentName}
+  const [activeAgents, setActiveAgents] = useState({}); // {agentId: agentName}
+  
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const { socket, joinRoom, leaveRoom } = useSocketStore();
+  const currentAgent = useAuthStore(state => state.user);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -49,9 +56,10 @@ export default function ChatWindow({ activeConversationId, onBack }) {
   }, [activeConversationId, fetchConversationData]);
 
   useEffect(() => {
-    if (!activeConversationId || !socket) return;
+    if (!activeConversationId || !socket || !currentAgent) return;
     
-    joinRoom(activeConversationId);
+    // Pass agent info for presence/collision detection
+    joinRoom(activeConversationId, { id: currentAgent.id, name: currentAgent.name });
 
     const handleNewMessage = (data) => {
       if (data.conversationId === activeConversationId) {
@@ -73,15 +81,49 @@ export default function ChatWindow({ activeConversationId, onBack }) {
       }
     };
 
+    const handleAgentPresence = (data) => {
+      if (data.conversationId === activeConversationId && data.agent.id !== currentAgent.id) {
+        setActiveAgents(prev => {
+          const next = { ...prev };
+          if (data.type === 'join') next[data.agent.id] = data.agent.name;
+          else delete next[data.agent.id];
+          return next;
+        });
+      }
+    };
+
+    const handleAgentTyping = (data) => {
+      if (data.conversationId === activeConversationId && data.agent.id !== currentAgent.id) {
+        setTypingAgents(prev => {
+          const next = { ...prev };
+          if (data.isTyping) next[data.agent.id] = data.agent.name;
+          else delete next[data.agent.id];
+          return next;
+        });
+      }
+    };
+
+    const handleHandoff = (data) => {
+      if (data.conversationId === activeConversationId) {
+        setConversation(prev => ({ ...prev, assignedTo: data.targetAgent }));
+      }
+    };
+
     socket.on('new_message', handleNewMessage);
     socket.on('conversation_updated', handleConversationUpdated);
+    socket.on('agent_presence', handleAgentPresence);
+    socket.on('agent_typing', handleAgentTyping);
+    socket.on('handoff_occurred', handleHandoff);
 
     return () => {
       socket.off('new_message', handleNewMessage);
       socket.off('conversation_updated', handleConversationUpdated);
-      leaveRoom(activeConversationId);
+      socket.off('agent_presence', handleAgentPresence);
+      socket.off('agent_typing', handleAgentTyping);
+      socket.off('handoff_occurred', handleHandoff);
+      leaveRoom(activeConversationId, { id: currentAgent.id, name: currentAgent.name });
     };
-  }, [activeConversationId, socket, joinRoom, leaveRoom, scrollToBottom]);
+  }, [activeConversationId, socket, currentAgent, joinRoom, leaveRoom, scrollToBottom]);
 
   const updateStatus = (newStatus) => {
     if (newStatus === 'escalate') {
@@ -123,8 +165,8 @@ export default function ChatWindow({ activeConversationId, onBack }) {
     );
   }
 
-  const customerName = conversation.userId?.name || conversation.userId?.email || 'Customer';
-  const initials = customerName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const customerName = conversation?.userId?.name || conversation?.userId?.email || 'Customer';
+  const initials = customerName.split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'CU';
 
   // Find the subject from the first user message if it's an email
   const emailSubject = messages.find(m => m.channel === 'email' && m.senderType === 'user' && m.metadata?.emailSubject)?.metadata?.emailSubject || '';
@@ -208,41 +250,69 @@ export default function ChatWindow({ activeConversationId, onBack }) {
           <div className="flex flex-col gap-6 max-w-4xl mx-auto">
             
             <div className="text-center my-4">
-               <span className="bg-gray-200 text-gray-500 text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full">Started {new Date(conversation.createdAt).toLocaleDateString()}</span>
+               <span className="bg-gray-200 text-gray-500 text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full">Started {conversation.createdAt ? new Date(conversation.createdAt).toLocaleDateString() : 'Today'}</span>
             </div>
+
+            {/* Collision Detection Banner */}
+            {Object.keys(activeAgents).length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black text-amber-900 uppercase tracking-tighter">Collision Alert</p>
+                    <p className="text-[12px] font-bold text-amber-700">
+                      {Object.values(activeAgents).join(', ')} {Object.keys(activeAgents).length === 1 ? 'is' : 'are'} also viewing this chat.
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-black rounded uppercase">Read Only Recommended</span>
+              </div>
+            )}
 
             {[...messages].map((msg, index) => {
               const isUser = msg.senderType === 'user';
+              const isInternal = msg.isInternal;
               const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now';
 
               return (
-                <div key={index} className={`flex items-start gap-4 ${!isUser ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border border-white shadow-sm ${
-                    isUser ? 'bg-[#E5F5EF] text-[#0F7A5E]' : 'bg-primary text-white'
+                <div key={index} className={`flex items-start gap-4 ${!isUser ? 'flex-row-reverse' : ''} ${isInternal ? 'opacity-90' : ''}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border shadow-sm ${
+                    isUser ? 'bg-[#E5F5EF] text-[#0F7A5E] border-white' : isInternal ? 'bg-amber-500 text-white border-amber-400' : 'bg-primary text-white border-white'
                   }`}>
-                    {isUser ? initials : (msg.metadata?.agentId?.name ? msg.metadata.agentId.name[0].toUpperCase() : 'AG')}
+                    {isUser ? initials : isInternal ? <Lock size={12} /> : (msg.metadata?.agentId?.name?.[0]?.toUpperCase() || 'AG')}
                   </div>
                   <div className={`flex flex-col max-w-[75%] ${!isUser ? 'items-end' : 'items-start'}`}>
                     {/* Channel Badge & Agent Name */}
                     <div className="flex items-center gap-2 mb-1.5 px-1">
+                      {isInternal && (
+                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter bg-amber-50 px-2 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+                          Internal Note
+                        </span>
+                      )}
                       {!isUser && msg.metadata?.agentId?.name && (
                         <span className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">
                           Agent: {msg.metadata.agentId.name}
                         </span>
                       )}
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border shadow-sm ${
-                        msg.channel === 'email' ? 'text-blue-700 bg-blue-50 border-blue-200' : 
-                        msg.channel === 'whatsapp' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
-                        msg.channel === 'telegram' ? 'text-sky-700 bg-sky-50 border-sky-200' :
-                        msg.channel === 'discord' ? 'text-indigo-700 bg-indigo-50 border-indigo-200' :
-                        'text-purple-700 bg-purple-50 border-purple-200'
-                      }`}>
-                        via {msg.channel === 'email' ? 'Email' : msg.channel === 'whatsapp' ? 'WhatsApp' : msg.channel === 'telegram' ? 'Telegram' : msg.channel === 'discord' ? 'Discord' : 'Web Chat'}
-                      </span>
+                      {!isInternal && (
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border shadow-sm ${
+                          msg.channel === 'email' ? 'text-blue-700 bg-blue-50 border-blue-200' : 
+                          msg.channel === 'whatsapp' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                          msg.channel === 'telegram' ? 'text-sky-700 bg-sky-50 border-sky-200' :
+                          msg.channel === 'discord' ? 'text-indigo-700 bg-indigo-50 border-indigo-200' :
+                          'text-purple-700 bg-purple-50 border-purple-200'
+                        }`}>
+                          via {msg.channel === 'email' ? 'Email' : msg.channel === 'whatsapp' ? 'WhatsApp' : msg.channel === 'telegram' ? 'Telegram' : msg.channel === 'discord' ? 'Discord' : 'Web Chat'}
+                        </span>
+                      )}
                     </div>
 
                     <div className={`rounded-[24px] px-6 py-4 text-[14px] shadow-md leading-relaxed ${
-                      isUser ? 'bg-white border border-slate-100 rounded-tl-[6px] text-slate-800' : 'bg-gradient-to-br from-[#00897B] to-[#00695C] text-white rounded-tr-[6px] border border-teal-700/30'
+                      isUser ? 'bg-white border border-slate-100 rounded-tl-[6px] text-slate-800' : 
+                      isInternal ? 'bg-amber-50 border border-amber-200 rounded-tr-[6px] text-amber-900 italic' :
+                      'bg-gradient-to-br from-[#00897B] to-[#00695C] text-white rounded-tr-[6px] border border-teal-700/30'
                     }`}>
                       {msg.metadata?.attachmentUrl && (
                         <div className="mb-3 mt-1">
@@ -278,6 +348,18 @@ export default function ChatWindow({ activeConversationId, onBack }) {
             })}
             
             <div ref={messagesEndRef} className="h-4" />
+            
+            {/* Typing Indicators */}
+            {Object.keys(typingAgents).length > 0 && (
+              <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-widest px-2 animate-pulse">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                {Object.values(typingAgents).join(', ')} {Object.keys(typingAgents).length === 1 ? 'is' : 'are'} typing...
+              </div>
+            )}
           </div>
         </div>
 
@@ -317,6 +399,7 @@ export default function ChatWindow({ activeConversationId, onBack }) {
             <MessageInput
               ref={inputRef}
               conversationId={activeConversationId}
+              currentAgent={currentAgent ? { id: currentAgent.id, name: currentAgent.name } : null}
             />
           </div>
         </div>

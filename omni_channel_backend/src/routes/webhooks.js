@@ -107,6 +107,9 @@ router.post('/email', async (req, res) => {
     const fromEmail = req.body.from; // Usually "Name <email@domain.com>"
     const subject = req.body.subject;
     const textBody = req.body.text; // The plain text content
+    
+    // Attempt to extract messageId for threading (SendGrid specific or generic)
+    const messageId = req.body.headers?.['Message-ID'] || req.body['message-id'] || null;
 
     if (!fromEmail || !textBody) return;
 
@@ -119,7 +122,8 @@ router.post('/email', async (req, res) => {
 
     // 2. Process Message (FAST)
     const result = await conversationService.processIncomingMessage(user, 'email', textBody, {
-      emailSubject: subject
+      emailSubject: subject,
+      messageId: messageId
     });
 
     // --- INSTANT UI UPDATE ---

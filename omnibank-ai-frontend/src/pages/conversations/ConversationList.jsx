@@ -55,9 +55,9 @@ export default function ConversationList({ activeTab, activeConversationId, onSe
   });
 
   const getAvatar = (name) => {
-    const initials = (name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    const initials = (name || 'U').split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().substring(0, 2) || 'U';
     const colors = ['bg-red-500', 'bg-pink-500', 'bg-purple-500', 'bg-indigo-500', 'bg-blue-500', 'bg-teal-500', 'bg-green-500', 'bg-orange-500'];
-    const charCodeSum = (name || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const charCodeSum = (name || 'U').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return { initials, colorClass: colors[charCodeSum % colors.length] };
   };
 

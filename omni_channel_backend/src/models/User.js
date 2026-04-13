@@ -55,7 +55,13 @@ const userSchema = new mongoose.Schema({
   riskScore: {
     type: Number,
     default: 0
-  }
+  },
+  riskHistory: [{
+    score: Number,
+    delta: Number,
+    reason: String,
+    timestamp: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 // Custom index for sorting

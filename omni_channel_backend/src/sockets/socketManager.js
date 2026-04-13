@@ -6,9 +6,41 @@ const socketManager = (io) => {
     console.log(`Socket connected: ${socket.id}`);
 
     // Join a specific conversation room
-    socket.on('join_conversation', ({ conversationId }) => {
+    socket.on('join_conversation', ({ conversationId, agent }) => {
       socket.join(conversationId);
       console.log(`Socket ${socket.id} joined conversation ${conversationId}`);
+      
+      // If an agent joins, notify others in the room for collision detection
+      if (agent) {
+        socket.to(conversationId).emit('agent_presence', {
+          conversationId,
+          agent,
+          type: 'join'
+        });
+        
+        // Track agent ID on socket for disconnect cleanup
+        socket.agentInfo = { conversationId, agent };
+      }
+    });
+
+    socket.on('leave_conversation', ({ conversationId, agent }) => {
+      socket.leave(conversationId);
+      if (agent) {
+        socket.to(conversationId).emit('agent_presence', {
+          conversationId,
+          agent,
+          type: 'leave'
+        });
+      }
+    });
+
+    // Handle agent typing status
+    socket.on('agent_typing', ({ conversationId, agent, isTyping }) => {
+      socket.to(conversationId).emit('agent_typing', {
+        conversationId,
+        agent,
+        isTyping
+      });
     });
 
     // Handle Web Chat customer message
@@ -53,10 +85,26 @@ const socketManager = (io) => {
 
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);
+      if (socket.agentInfo) {
+        const { conversationId, agent } = socket.agentInfo;
+        socket.to(conversationId).emit('agent_presence', {
+          conversationId,
+          agent,
+          type: 'leave'
+        });
+      }
     });
   });
 
   return {
+    emitHandoff: (conversationId, targetAgent) => {
+      io.to(conversationId.toString()).emit('handoff_occurred', {
+        conversationId: conversationId.toString(),
+        targetAgent
+      });
+      // Global update to refresh sidebar
+      io.emit('conversation_updated', { conversationId: conversationId.toString() });
+    },
     // Helper to emit AI results from external services (Webhooks/Email)
     emitAiResults: (conversation, aiMessage) => {
       if (!conversation || !aiMessage) return;
