@@ -108,12 +108,12 @@ async function processIncomingMessage(userOrData, channel, content, metadata = {
 }
 
 /**
- * Runs the time-consuming Gemini AI Analysis and updates conversation metrics.
+ * Runs the time-consuming local AI Analysis (Ollama/Llama 3) and updates conversation metrics.
  * Designed to be run in the background.
  */
 async function applyAiAnalysis(conversationId, messageId, content, socketService = null) {
   try {
-    console.log(`[AI-BACKGROUND] Starting Gemini analysis for message ${messageId}...`);
+    console.log(`[AI-BACKGROUND] Starting Ollama analysis for message ${messageId}...`);
     
     // 1. Fetch Context: Message History, User Profile, and Conversation
     const [conversation, recentMessages, user] = await Promise.all([
@@ -124,8 +124,8 @@ async function applyAiAnalysis(conversationId, messageId, content, socketService
 
     if (!conversation || !user) return;
 
-    // 2. Prepare Gemini Input Payload (Following PART 1 - INPUT FORMAT)
-    const geminiInput = {
+    // 2. Prepare AI Input Payload (Following PART 1 - INPUT FORMAT)
+    const aiInput = {
       customerMessage: content,
       channel: conversation.lastChannel,
       conversationHistory: recentMessages.map(m => ({
@@ -148,8 +148,8 @@ async function applyAiAnalysis(conversationId, messageId, content, socketService
       }
     };
 
-    // 3. Call Gemini
-    const aiResponse = await aiService.processMessageWithGemini(geminiInput);
+    // 3. Call Ollama
+    const aiResponse = await aiService.processMessageWithOllama(aiInput);
     const ai = aiResponse.data;
 
     // 4. Update Conversation with AI results (Intent, Sentiment, Summary, Routing, Suggested Replies)
@@ -167,7 +167,7 @@ async function applyAiAnalysis(conversationId, messageId, content, socketService
     
     console.log(`[AI-DEBUG] Suggestions to save: ${JSON.stringify(conversation.suggestedReplies)}`);
     
-    // Auto-routing if unassigned (Mapping Gemini teams to DB teams)
+    // Auto-routing if unassigned (Mapping AI teams to DB teams)
     if (!conversation.assignedTeam && ai.team_routing?.length > 0) {
       const Team = require('../models/Team');
       const teamMapper = {
@@ -260,7 +260,7 @@ async function applyAiAnalysis(conversationId, messageId, content, socketService
 
     return ai;
   } catch (error) {
-    console.error("[AI-BACKGROUND] Gemini analysis failed:", error);
+    console.error("[AI-BACKGROUND] AI analysis failed:", error);
   }
 }
 

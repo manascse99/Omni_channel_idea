@@ -10,7 +10,7 @@ export default function DashboardPage() {
   const activeTab = tab ? tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ') : 'Live';
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto h-full flex flex-col">
+    <div className="p-8 max-w-[1400px] mx-auto min-h-full flex flex-col">
       <div className="mb-10 flex items-end justify-between">
         <div>
           <p className="text-[11px] font-bold tracking-[0.2em] text-indigo-500 mb-2 uppercase">

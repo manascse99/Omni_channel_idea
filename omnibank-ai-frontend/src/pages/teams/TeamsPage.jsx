@@ -30,7 +30,7 @@ export default function TeamsPage() {
   }, []);
 
   return (
-    <div className="p-10 max-w-[1400px] mx-auto h-full overflow-y-auto bg-white/50">
+    <div className="p-10 max-w-[1400px] mx-auto min-h-full bg-white/50">
       <div className="flex items-center justify-between mb-10">
         <div>
           <h2 className="text-[32px] font-black text-primary tracking-tight leading-none mb-2">

@@ -170,23 +170,29 @@ const MessageInput = forwardRef(function MessageInput({ conversationId, onMessag
         </div>
       )}
       
-      <div className={`p-1 mb-2 inline-flex rounded-xl transition-all ${isInternal ? 'bg-amber-100' : 'bg-slate-100'}`}>
+      <div className={`p-1.5 mb-3 inline-flex rounded-2xl transition-all shadow-sm ${isInternal ? 'bg-amber-100/60 border border-amber-200/50' : 'bg-slate-50 border border-slate-200/40'}`}>
         <button 
           onClick={() => setIsInternal(false)}
-          className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!isInternal ? 'bg-white text-teal shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            !isInternal ? 'bg-white text-[#00C9A7] shadow-md border border-indigo-50' : 'text-[#334155]/40 hover:text-[#334155]/60'
+          }`}
         >
           Reply to Customer
         </button>
         <button 
           onClick={() => setIsInternal(true)}
-          className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${isInternal ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+            isInternal ? 'bg-amber-500 text-white shadow-md' : 'text-[#334155]/40 hover:text-[#334155]/60'
+          }`}
         >
-          <Lock size={12} /> Internal Note
+          <Lock size={12} strokeWidth={3} /> Internal Note
         </button>
       </div>
 
-      <div className={`glass-card !backdrop-blur-xl border !rounded-[24px] pl-5 pr-3 py-3 flex items-center shadow-lg w-full transition-all ${
-        isInternal ? '!bg-amber-50/90 border-amber-200 ring-2 ring-amber-100' : '!bg-white/80 border-white/60 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]'
+      <div className={`glass-card !backdrop-blur-3xl border !rounded-[28px] pl-6 pr-3.5 py-3.5 flex items-center shadow-xl w-full transition-all duration-300 ${
+        isInternal 
+          ? '!bg-amber-50/90 border-amber-200 ring-4 ring-amber-100/20' 
+          : '!bg-white/90 border-slate-200 shadow-[0_15px_40px_rgba(30,27,75,0.04)] focus-within:border-indigo-200 focus-within:ring-4 focus-within:ring-indigo-50/50'
       }`}>
         <input 
           type="file"
@@ -197,29 +203,33 @@ const MessageInput = forwardRef(function MessageInput({ conversationId, onMessag
         />
         <button 
           onClick={() => fileInputRef.current?.click()}
-          className={`p-2.5 rounded-full transition-colors ${isInternal ? 'text-amber-600 hover:bg-amber-100' : 'text-slate-600 hover:text-teal hover:bg-slate-100'}`}
+          className={`p-2.5 rounded-2xl transition-all ${
+            isInternal ? 'text-amber-600 hover:bg-amber-100' : 'text-slate-400 hover:text-[#1e1b4b] hover:bg-slate-50'
+          }`}
         >
-          <Paperclip size={20} />
+          <Paperclip size={20} strokeWidth={2.5} />
         </button>
         <input 
           type="text" 
           placeholder={isInternal ? "Write an internal note for teammates..." : "Type your message here..."}
-          className="flex-1 bg-transparent px-4 outline-none text-[14px] font-medium text-slate-800 placeholder-slate-400"
+          className={`flex-1 bg-transparent px-5 outline-none text-[14.5px] font-bold text-[#334155] placeholder-[${isInternal ? '#92400e/40' : '#334155/30'}]`}
           value={text}
           onChange={(e) => handleTextChange(e.target.value)}
           onKeyDown={handleKeyDown}
         />
-        <button className={`p-2.5 rounded-full transition-colors mr-2 ${isInternal ? 'text-amber-600 hover:bg-amber-100' : 'text-slate-600 hover:text-teal hover:bg-slate-100'}`}>
-          <Smile size={20} />
+        <button className={`p-2.5 rounded-2xl transition-all mr-2 ${
+          isInternal ? 'text-amber-600 hover:bg-amber-100' : 'text-slate-400 hover:text-[#1e1b4b] hover:bg-slate-50'
+        }`}>
+          <Smile size={20} strokeWidth={2.5} />
         </button>
         <button 
           onClick={() => handleSend()}
           disabled={(!text.trim() && !attachment) || sending}
-          className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all shadow-md shrink-0 disabled:bg-slate-200 disabled:text-slate-400 ${
-            isInternal ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-teal hover:brightness-95 text-white'
+          className={`w-14 h-14 rounded-[22px] flex items-center justify-center transition-all shadow-xl shrink-0 active:scale-95 disabled:grayscale disabled:opacity-30 disabled:pointer-events-none ${
+            isInternal ? 'bg-amber-500 text-white shadow-amber-100' : 'bg-gradient-to-br from-[#00C9A7] to-[#00A884] text-white shadow-teal-100/50 hover:shadow-teal-100/80'
           }`}
         >
-          <Send size={18} />
+          <Send size={20} strokeWidth={3} className={sending ? 'animate-pulse' : ''} />
         </button>
       </div>
     </div>

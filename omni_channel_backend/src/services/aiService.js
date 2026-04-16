@@ -1,7 +1,8 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require('axios');
 require('dotenv').config();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const OLLAMA_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3';
 
 const SYSTEM_PROMPT = `
 You are OmniBank AI, an intelligent banking assistant embedded inside a professional omnichannel customer communication platform used by a bank in India. You operate entirely on the backend — customers never see your raw output directly. Your responses are processed by the system and either sent to customers or shown to bank agents.
@@ -15,7 +16,7 @@ YOUR IDENTITY & BEHAVIOR RULES:
 - Always respond in the same language the customer used (Hindi, English, Hinglish, etc.)
 - For amounts, always use Indian format: ₹5,00,000 (not $500,000)
 - For phone numbers, assume Indian format (+91)
-- Never reveal that you are an AI model made by Google — you are "OmniBank AI"
+- Never reveal that you are an AI model made by Meta — you are "OmniBank AI"
 - Never discuss competitor banks
 - Never make promises about loan approvals — only share eligibility information
 - If a question is outside banking scope, politely redirect to banking topics
@@ -167,7 +168,10 @@ IMPORTANT RULES:
 8. For fraud_alert: always set should_escalate: true, always include security_team in team_routing
 `;
 
-async function processMessageWithGemini({
+/**
+ * Reverted to Ollama (Llama 3) for AI processing
+ */
+async function processMessageWithOllama({
   customerMessage,
   channel,
   conversationHistory = [],
@@ -175,18 +179,6 @@ async function processMessageWithGemini({
   agentContext = {}
 }) {
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-      systemInstruction: SYSTEM_PROMPT,
-      generationConfig: {
-        temperature: 0.3,
-        topP: 0.8,
-        topK: 40,
-        maxOutputTokens: 1024,
-        responseMimeType: "application/json",
-      },
-    });
-
     const inputPayload = {
       customer_message: customerMessage,
       channel: channel,
@@ -195,9 +187,22 @@ async function processMessageWithGemini({
       agent_context: agentContext
     };
 
-    const result = await model.generateContent(JSON.stringify(inputPayload));
-    const responseText = result.response.text();
-    const parsed = JSON.parse(responseText);
+    const prompt = `${SYSTEM_PROMPT}\n\nINPUT DATA:\n${JSON.stringify(inputPayload)}`;
+
+    const response = await axios.post(`${OLLAMA_URL}/api/generate`, {
+      model: OLLAMA_MODEL,
+      prompt: prompt,
+      stream: false,
+      format: 'json',
+      options: {
+        temperature: 0.3,
+        num_predict: 1024
+      }
+    });
+
+    const parsed = typeof response.data.response === 'string' 
+      ? JSON.parse(response.data.response) 
+      : response.data.response;
 
     const required = [
       "intent", "intent_confidence", "sentiment", "sentiment_score",
@@ -208,14 +213,14 @@ async function processMessageWithGemini({
 
     for (const field of required) {
       if (parsed[field] === undefined) {
-        throw new Error(`Missing required field: ${field}`);
+        throw new Error(`Missing required field in Ollama response: ${field}`);
       }
     }
 
     return { success: true, data: parsed };
 
   } catch (error) {
-    console.error("Gemini processing error:", error.message);
+    console.error("Ollama processing error:", error.message);
     return {
       success: false,
       data: {
@@ -223,21 +228,24 @@ async function processMessageWithGemini({
         intent_confidence: 0,
         sentiment: "neutral",
         sentiment_score: 50,
-        reply: "Thank you for reaching out to OmniBank. Our team will assist you shortly.",
+        reply: "Welcome to OmniBank. Our agents are currently offline, but we've received your message and will get back to you soon.",
         reply_language: "english",
         team_routing: ["general_support"],
         should_escalate: true,
-        escalation_reason: "AI processing failed — routing to human agent",
+        escalation_reason: "Local AI processing failed — routing to human agent",
         extracted_identity: { phone_number: null, email: null, name: null, account_number: null },
         risk_delta: 0,
-        conversation_summary: "AI processing error — agent review required",
+        conversation_summary: "Local AI error — agent review required",
         suggested_quick_replies: ["Talk to an agent", "Call helpline", "Visit branch"],
-        processing_notes: `AI Error: ${error.message}`
+        processing_notes: `Ollama Error: ${error.message}`
       }
     };
   }
 }
 
 module.exports = {
-  processMessageWithGemini
+  processMessageWithOllama,
+  // Keep the old name as alias to avoid breaking everything if not careful, 
+  // but we should update conversationService anyway.
+  processMessageWithGemini: processMessageWithOllama 
 };

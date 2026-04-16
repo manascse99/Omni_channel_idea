@@ -1,7 +1,8 @@
-import React from 'react';
-import { AlertCircle, ShieldAlert, Cpu, Smile, Meh, Frown, Clock, ArrowRight, Zap, Mail, MessageSquare, Send } from 'lucide-react';
+import { AlertCircle, ShieldAlert, Cpu, Smile, Meh, Frown, Clock, ArrowRight, Zap, Mail, MessageSquare, Send, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function MonitorCard({ data, onTakeOver }) {
+  const navigate = useNavigate();
   const { name, status, waiting, intent, sentiment, confidence, avatar, channel } = data;
 
   const statusConfig = {
@@ -169,9 +170,18 @@ export default function MonitorCard({ data, onTakeOver }) {
           </div>
 
           <div className="flex items-center justify-between pt-2">
-             <div className="flex items-center gap-2 bg-white/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white shadow-sm">
-                {channelIcon}
-                <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">{channel || 'Web'}</span>
+             <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 bg-white/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white shadow-sm">
+                   {channelIcon}
+                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">{channel || 'Web'}</span>
+                </div>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); navigate(`/customers/${data.id}`); }}
+                  className="w-8 h-8 flex items-center justify-center bg-white/70 backdrop-blur-md rounded-xl border border-white shadow-sm text-slate-400 hover:text-teal transition-all"
+                  title="View Full Profile"
+                >
+                  <ExternalLink size={14} />
+                </button>
              </div>
 
              <button 

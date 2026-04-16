@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/apiClient';
 import { 
   CheckCircle2, MessageSquare, AlertTriangle, Clock, 
@@ -13,6 +14,7 @@ const TYPE_CONFIG = {
 
 export default function ActivityFeed() {
   const [activities, setActivities] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.get('/dashboard/activity')
@@ -29,7 +31,10 @@ export default function ActivityFeed() {
            </div>
            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Activity Feed</h3>
         </div>
-        <button className="text-[10px] font-bold text-teal hover:underline flex items-center gap-1 group/btn">
+        <button 
+          onClick={() => navigate('/notifications')}
+          className="text-[10px] font-bold text-teal hover:underline flex items-center gap-1 group/btn"
+        >
            View Log <ChevronRight size={12} className="group-hover/btn:translate-x-0.5 transition-transform" />
         </button>
       </div>

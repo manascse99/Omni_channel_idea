@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const settingsSchema = new mongoose.Schema({
   ai: {
-    model: { type: String, default: 'gemini-1.5-pro' },
+    model: { type: String, default: 'llama3' },
     autoReply: { type: Boolean, default: true },
     autoEscalate: { type: Boolean, default: true },
     sentimentAnalysis: { type: Boolean, default: true },

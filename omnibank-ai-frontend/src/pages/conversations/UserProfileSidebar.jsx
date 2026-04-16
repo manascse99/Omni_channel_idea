@@ -9,7 +9,7 @@ export default function UserProfileSidebar({ user, onProfileUpdated }) {
   if (!user) return null;
 
   return (
-    <div className="w-[300px] bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto">
+    <div className="w-full max-w-[320px] min-w-[280px] bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto z-20">
       {/* Header Profile Photo */}
       <div className="p-8 flex flex-col items-center border-b border-gray-100">
         <div className="w-24 h-24 rounded-full bg-[#E5F5EF] text-[#0F7A5E] flex items-center justify-center font-black text-2xl shadow-sm border-4 border-white">

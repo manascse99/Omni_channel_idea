@@ -14,7 +14,7 @@ export default function AppLayout() {
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0 h-full">
         <Header />
-        <main className="flex-1 overflow-hidden h-full">
+        <main className="flex-1 overflow-y-auto h-full scrollbar-hide">
           <Outlet />
         </main>
       </div>

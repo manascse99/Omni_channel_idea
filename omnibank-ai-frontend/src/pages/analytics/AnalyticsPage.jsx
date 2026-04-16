@@ -40,7 +40,7 @@ export default function AnalyticsPage() {
   }, [days, customRange]);
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto h-full flex flex-col overflow-y-auto">
+    <div className="p-8 max-w-[1400px] mx-auto min-h-full flex flex-col">
       
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">

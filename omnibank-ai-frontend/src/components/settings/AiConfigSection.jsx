@@ -34,8 +34,8 @@ export default function AiConfigSection({ settings, onUpdate }) {
         </div>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', desc: 'Best accuracy', badge: 'Recommended' },
-            { id: 'gemini-flash', label: 'Gemini Flash', desc: 'Fastest responses', badge: '' },
+            { id: 'llama3', label: 'Llama 3 (Local)', desc: 'Privacy-focused local AI', badge: 'Recommended' },
+            { id: 'mistral', label: 'Mistral (Local)', desc: 'Highly efficient model', badge: '' },
             { id: 'custom', label: 'Custom Model', desc: 'Your fine-tune', badge: 'Enterprise' },
           ].map(m => (
             <button

@@ -8,7 +8,7 @@ export default function EscalationModal({ isOpen, onClose, onEscalate, teamId })
   const [search, setSearch] = useState('');
   const [selectedAgent, setSelectedAgent] = useState(null);
 
-  const fetchAgents = useCallback(() => {
+  useEffect(() => {
     if (isOpen && teamId) {
       setLoading(true);
       api.get(`/teams/${teamId}/agents`)
@@ -22,10 +22,6 @@ export default function EscalationModal({ isOpen, onClose, onEscalate, teamId })
         });
     }
   }, [isOpen, teamId]);
-
-  useEffect(() => {
-    fetchAgents();
-  }, [fetchAgents]);
 
   if (!isOpen) return null;
 

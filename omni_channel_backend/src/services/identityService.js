@@ -21,6 +21,11 @@ async function resolveIdentity(channel, identifier, name = null) {
     return { user: null, isNew: false };
   }
 
+  if (isSystemIdentifier(identifier)) {
+    console.warn(`[IDENTITY] Blocked system identifier from resolving to user: ${identifier}`);
+    return { user: null, isNew: false };
+  }
+
   try {
     let user = await User.findOne(query);
 
@@ -91,6 +96,11 @@ async function resolveIdentity(channel, identifier, name = null) {
  */
 async function linkIdentity(primaryUserId, additionalIdentifier, identifierType) {
   try {
+    if (isSystemIdentifier(additionalIdentifier)) {
+      console.warn(`[IDENTITY-LINK] Blocked system identifier from linking: ${additionalIdentifier}`);
+      return null;
+    }
+
     const user = await User.findById(primaryUserId);
     if (!user) return null;
 
@@ -127,12 +137,21 @@ async function linkIdentity(primaryUserId, additionalIdentifier, identifierType)
         { $unset: { email: 1, phone: 1, telegramChatId: 1, discordUserId: 1 } }
       );
 
+      // Fetch models and conversations for merging
+      const Conversation = require('../models/Conversation');
+      const Message = require('../models/Message');
+      const Notification = require('../models/Notification');
+
+      const primaryConversation = await Conversation.findOne({ userId: existingOtherUser._id });
+      const dupConversations = await Conversation.find({ userId: user._id });
+
       let deletedConversationId = null;
-      if (dupConversation) {
+      for (const dupConversation of dupConversations) {
+        console.log(`[IDENTITY-MERGE] Unifying conversation: ${dupConversation._id}`);
         if (primaryConversation) {
           // Merge messages into the master thread
           await Message.updateMany({ conversationId: dupConversation._id }, { conversationId: primaryConversation._id });
-          deletedConversationId = dupConversation._id;
+          deletedConversationId = dupConversation._id; // Track for socket event (UI pruning)
           await Conversation.deleteOne({ _id: dupConversation._id });
         } else {
           // No primary conversation, so the duplicate's becomes the primary
@@ -199,49 +218,48 @@ async function mergeUsers(primaryUserId, duplicateUserId) {
   );
   console.log(`[MERGE] Updated ${messageUpdate.modifiedCount} user-sent messages.`);
 
-  // Step 2: Handle Conversation migration
+  // Step 2: Handle Conversation migration (Handle ALL duplicate conversations)
   const primaryConversation = await Conversation.findOne({ userId: primaryUserId });
-  const dupConversation = await Conversation.findOne({ userId: duplicateUserId });
+  const dupConversations = await Conversation.find({ userId: duplicateUserId });
 
-  if (dupConversation) {
-    console.log(`[MERGE] Found duplicate conversation: ${dupConversation._id}`);
+  for (const dupConversation of dupConversations) {
+    console.log(`[MERGE] Handling duplicate conversation: ${dupConversation._id}`);
     if (primaryConversation) {
-      console.log(`[MERGE] Merging into primary conversation: ${primaryConversation._id}`);
+      console.log(`[MERGE] Merging messages into primary: ${primaryConversation._id}`);
       
       // Move all messages from duplicate conversation into primary conversation
       const convMessageUpdate = await Message.updateMany(
         { conversationId: dupConversation._id },
         { $set: { conversationId: primaryConversation._id } }
       );
-      console.log(`[MERGE] Moved ${convMessageUpdate.modifiedCount} messages between threads.`);
+      console.log(`[MERGE] Moved ${convMessageUpdate.modifiedCount} messages.`);
 
-      // Combine unread counts if applicable
+      // Combine unread counts
       if (dupConversation.unreadCount > 0) {
         primaryConversation.unreadCount = (primaryConversation.unreadCount || 0) + dupConversation.unreadCount;
         primaryConversation.isRead = false;
       }
 
-      // Preserve the most recent channel info
-      if (dupConversation.updatedAt > primaryConversation.updatedAt) {
+      // Preserve the most recent metadata
+      if (!primaryConversation.updatedAt || dupConversation.updatedAt > primaryConversation.updatedAt) {
         primaryConversation.lastChannel = dupConversation.lastChannel;
         primaryConversation.lastMessage = dupConversation.lastMessage;
         primaryConversation.updatedAt = dupConversation.updatedAt;
       }
 
-      await primaryConversation.save();
-
-      // Delete the duplicate conversation safely
+      // Delete the swallowed thread
       await Conversation.deleteOne({ _id: dupConversation._id });
-      console.log(`[MERGE] Deleted duplicate conversation.`);
     } else {
-      console.log(`[MERGE] Primary has no conversation. Inheriting duplicate conversation.`);
-      // If primary somehow doesn't have a conversation, inherit the duplicate's conversation
+      console.log(`[MERGE] Primary has no conversation. Re-assigning duplicate thread.`);
+      // Re-assign the entire conversation to the primary user
       await Conversation.updateOne(
         { _id: dupConversation._id },
         { $set: { userId: primaryUserId } }
       );
     }
   }
+
+  if (primaryConversation) await primaryConversation.save();
 
   // Step 3: Transfer Notifications
   await Notification.updateMany({ userId: duplicateUserId }, { userId: primaryUserId });
@@ -280,6 +298,18 @@ async function mergeUsers(primaryUserId, duplicateUserId) {
     }
   }
 
+  // Step 4.5: Unify Risk Profiles (Production Requirement)
+  console.log(`[MERGE] Unifying risk profiles...`);
+  // Keep the higher risk score (Bank's safest assumption)
+  primaryUser.riskScore = Math.max(primaryUser.riskScore || 0, duplicateUser.riskScore || 0);
+  
+  // Combine and sort risk history
+  if (duplicateUser.riskHistory && duplicateUser.riskHistory.length > 0) {
+    primaryUser.riskHistory = [...(primaryUser.riskHistory || []), ...duplicateUser.riskHistory]
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 20); // Maintain capped length
+  }
+
   // Step 5: Bypass Mongoose and directly UNSET unique fields on MongoDB level
   // This aggressively frees up the constraints so primaryUser can absorb them safely
   await User.updateOne(
@@ -295,6 +325,19 @@ async function mergeUsers(primaryUserId, duplicateUserId) {
   console.log(`[MERGE] Duplicate user deleted. Merge Complete.`);
 
   return primaryUser;
+}
+
+/**
+ * Safety check for production to prevent merging into system accounts.
+ */
+function isSystemIdentifier(identifier) {
+  if (!identifier) return false;
+  const sysPatterns = [
+    'support@', 'info@', 'help@', 'admin@', 
+    'no-reply@', 'noreply@', 'bank@', 'system@'
+  ];
+  const idStr = identifier.toLowerCase();
+  return sysPatterns.some(pattern => idStr.includes(pattern));
 }
 
 module.exports = {
