@@ -90,7 +90,7 @@ export default function Sidebar() {
 
   return (
     <aside 
-      className={`h-screen transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col shrink-0 border-r border-slate-200/60 relative z-40 bg-white/80 backdrop-blur-3xl shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${
+      className={`h-screen transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col shrink-0 border-r border-slate-200/60 relative z-50 bg-white/80 backdrop-blur-3xl shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${
         isCollapsed ? 'w-[88px]' : 'w-[280px]'
       }`}
     >
@@ -195,8 +195,8 @@ export default function Sidebar() {
       {/* Bottom Profile Section - Indigo Accented Card */}
       <div className="p-4 mt-auto">
         <div 
-          className={`bg-slate-50 border border-slate-200/50 rounded-[28px] transition-all duration-500 cursor-pointer overflow-hidden p-3 group hover:bg-white hover:border-indigo-100 hover:shadow-[0_12px_30px_rgba(30,27,75,0.06)] relative ${
-            isCollapsed ? 'items-center flex-col' : 'items-center flex'
+          className={`bg-slate-50 border border-slate-200/50 transition-all duration-500 cursor-pointer group hover:bg-white hover:border-indigo-100 hover:shadow-[0_12px_30px_rgba(30,27,75,0.06)] relative flex items-center ${
+            isCollapsed ? 'p-1 justify-center rounded-full' : 'p-3 rounded-[28px]'
           }`}
           onClick={() => navigate('/profile')}
         >
